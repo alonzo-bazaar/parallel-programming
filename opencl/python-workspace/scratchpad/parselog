@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+
+fatal() {
+    echo "[FATAL ERROR] $1" >&2
+    exit 1
+}
+
+# docs and links used:
+# In Bash, how can I check if a string begins with some value?
+# https://stackoverflow.com/questions/2172352
+
+# Remove a fixed prefix/suffix from a string in Bash
+# https://stackoverflow.com/questions/16623835
+
+# Pure bash bible, removing prefix from a string
+# https://github.com/dylanaraps/pure-bash-bible#strip-pattern-from-start-of-string
+ 
+# https://stackoverflow.com/questions/17048188/
+# How to use awk sort by column 3
+# (tho the answer I got from this was to just  call `sort' 
+lstrip() {
+    # Usage: lstrip "string" "pattern"
+    printf '%s\n' "${1##"$2"}"
+}
+
+isolate_starts_with() {
+    local starts_with="$1"
+    local logfile="$2"
+    local line
+    while read -r line; do
+        if [[ "$line" == "$starts_with"* ]] ; then
+            lstrip "$line" "$starts_with"
+        fi
+    done < "$logfile"
+}
+
+main() {
+    # setup
+    logfile="$1"
+    if [[ -z "$logfile" ]]; then
+        fatal "no log file was provided, please provide a log file"
+    elif [[ ! -e "$logfile" ]]; then
+        fatal "provided log file $logfile does not exist, cannot read log file"
+    fi
+
+    if false; then
+        echo "parameters received by the kernel:"
+        (echo "parameter,value"\
+             && isolate_starts_with "[KERNEL PARAMETER] " "$logfile" )\
+            | ./columns.bqn
+        echo ""
+    fi
+
+    if false; then
+        echo "source values"
+        # sort -nk1,1 instead of sort -nk1 since sort -nk1 uses field 1 and after
+        # sort -nk1,1 uses field 1 only
+        (echo "index,value,=> in the histogram is"\
+             && isolate_starts_with "[PICKED INDEX SRC] " "$logfile" )\
+            | sort -t, -nk1,1\
+            | ./columns.bqn
+    fi      
+
+    if true; then
+        echo "destination values"
+        # sort -nk1,1 instead of sort -nk1 since sort -nk1 uses field 1 and after
+        # sort -nk1,1 uses field 1 only
+        (echo "index,value,=>in the histogram is"\
+             && isolate_starts_with "[PICKED INDEX DST] " "$logfile" )\
+            | sort -t, -nk1,1\
+            | ./columns.bqn
+    fi      
+}
+
+main "$@"

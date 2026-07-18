@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+# set c compiler here
+CC=clang
+
+# minimum compilinx example and build commands from
+# https://github.com/KhronosGroup/OpenCL-Guide/blob/main/chapters/getting_started_linux.md
+comp() {
+    local args=( "$@" )
+    $CC -Wall -Wextra\
+        -DCL_TARGET_OPENCL_VERSION=300\
+        -lOpenCL\
+        "${args[@]}"
+}
+
+main() {
+    comp -Iinclude -o hello 'main.c'
+}
+
+main "$@"

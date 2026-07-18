@@ -1,0 +1,46 @@
+kernel wise
+first of all
+global flow
+in: image
+out: normalized image
+
+image will be received as (rows x cols x chans) tensor 
+this is the most approach way to receive images
+
+* first step: rgb to hsv
+simple enough can be done in place or writing image in to image out, whatever works best
+
+might make separate kernels for
+- rgb to hsv in place
+- rgba to hsv in place
+- rgb to hsv separate in and out
+- rgba to hsv separate in and out
+easy enough codegen imo
+
+look for a python library to read images into numpy arrays
+or, if shit gets desperate, link against stb
+
+* alternative flow 0
+#+begin_quote
+this forst flow should be implemented as a methlab step, not as a production step
+but it should be implemented, it will provide useful information to make the subsequent ones
+#+end_quote
+** assumption: all images are monocrhome
+** second step: normalize the single channel
+** profit
+
+* alternative flow 1
+** second step: h channel histogram
+** third step: normalize h channel
+** fourth step: hsv to rgb
+
+* alternative flow 2
+** second step: transpose
+** third step: normalize h channel
+** fourth step: bring this back to rgb(a)
+*** in two separate kernels
+**** untrans
+**** unhsv
+*** in one big +wife+ kernel
+**** untranshsv
+

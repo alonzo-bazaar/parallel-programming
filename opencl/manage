@@ -1,0 +1,248 @@
+#!/usr/bin/env bash
+
+# script to manage docker container used for developing the opencl
+# side of things in this project
+#
+# usage:
+# ./manage [subcmd...]
+# valid subcommands are
+# - shell : drop into a shell in the running container
+#           starts/creates the container if the container doesn't already
+#           exist or isn't already running
+# - run   : alias for shell
+# - stop  : (re)build docker image used by container
+# - build : (re)build docker image used by container
+# - rm    : delete the container
+#
+# docs used:
+# for bind mounts
+#   https://docs.docker.com/engine/storage/bind-mounts/
+# the --device flag I found out about here:
+#   https://github.com/pkienzle/opencl_docker
+# for the docker image build subcommand
+#   https://docs.docker.com/reference/cli/docker/image/build/
+
+if $DEBUG; then
+    export DEBUG=$DEBUG
+    set -u;
+fi
+. ./tools/utils.bash # colouring, logging, and some general utilities
+
+IMAGE_NAME='ocl-dev-env'
+CONTAINER_NAME='feel-so-clean-like-a-dev-machine'
+
+image_build() {
+    docker image build . -t "${IMAGE_NAME}"
+}
+
+CONTAINER_EXISTS=
+CONTAINER_IS_RUNNING=
+
+# sets the CONTAINER_EXISTS and CONTAINER_IS_RUNNING flags to their
+# appropriate values
+set_global_container_flags() {
+    # docker container inspect exits with an error code 1 if the container
+    # does not exist, we'll use this behaviour as our way to query for
+    # container existance
+    if docker container inspect "${CONTAINER_NAME}" &>/dev/null ; then
+        debug "container exists"
+        CONTAINER_EXISTS=true
+    else
+        debug "container does not exist"
+        CONTAINER_EXISTS=false
+    fi
+
+    # docker container inspect also provides a fair bit of information about
+    # the container (when it exists)
+    # this information includes wether the container is running running
+    # and since it provides it all in a rather big json dump... jq time
+    if $CONTAINER_EXISTS ; then
+        debug "container exists, checking if it's running"
+        # note: this line means I'm taking a 'true' or 'false' string from json
+        # object then using it as a bash "boolean"
+        # (string that's either literal 'true' or literal 'false', and gets run,
+        #  which invokes either the `true` builtin or the `false` builtin, and
+        #  then the builtin that we just ran is what returns either
+        #  0 (true) or 1 (false))
+        #
+        # so... I'm implicitly compiling a subset of json to subset bash
+        CONTAINER_IS_RUNNING="$(docker container inspect "${CONTAINER_NAME}"\
+            | jq '.[0].State.Running')"
+    else
+        debug "container does not exist, and is therefore not running"
+        CONTAINER_IS_RUNNING=false
+    fi
+
+    debug "continer exists?: ${CONTAINER_EXISTS}"
+    debug "continer is_running?: ${CONTAINER_IS_RUNNING}"
+}
+
+
+# in docker running an image means creating a process (container)
+# that runs that image, so the comamnd to create a container is called
+# docker run, not the best naming out there, at least it's documented
+# 
+# that said, to keep in line with this naming scheme the functions for creating
+# a container all start with image_run
+image_run_headless() {
+    docker run\
+        -it \
+        --rm \
+        --device '/dev/dri' \
+        --device '/dev/snd' \
+        --network host \
+        --mount type=bind,src=./c-workspace,dst=/root/workspace/c \
+        --mount type=bind,src=./python-workspace,dst=/root/workspace/python \
+        --mount type=bind,src=./images,dst=/root/workspace/images \
+        --name "${CONTAINER_NAME}" \
+        "${IMAGE_NAME}" \
+        bash
+}
+
+image_run_head() {
+    # equivalent to image_run_headless but we have some extra work to allow for
+    # running gui programs from the container if it's being run in linux
+    # environment with x11
+    #
+    # extra work initially stolen from this repo
+    # https://github.com/hemashushu/docker-archlinux-gui#mapping-x11
+    # and readapted from what is done in this repo
+    # https://github.com/Karscist/penultttimate/
+
+    export X11SOCKET_FOLDER=/tmp/.X11-unix
+
+    # Create XAuthority file for the container
+    export X11AUTHORITY_FILE=/tmp/.docker.xauth
+    touch ${X11AUTHORITY_FILE}
+
+    DISPLAY_CANONICAL=$(echo $DISPLAY | sed s/localhost//)
+
+    if [ $DISPLAY_CANONICAL != $DISPLAY ]
+    then
+        export DISPLAY=$DISPLAY_CANONICAL
+    fi
+
+    # Allow any host to connect to this X server
+    xauth nlist ${DISPLAY} | sed -e 's/^..../ffff/' | uniq | xauth -f ${X11AUTHORITY_FILE} nmerge -
+
+    docker run\
+        -it \
+        --rm \
+        -e XAUTHORITY=${X11AUTHORITY_FILE} \
+        -e DISPLAY=${DISPLAY} \
+        --device '/dev/dri' \
+        --device '/dev/snd' \
+        --network host \
+        --cap-add=NET_RAW \
+        --mount type=bind,source="${X11SOCKET_FOLDER}",target="${X11SOCKET_FOLDER}" \
+        --mount type=bind,source="${X11AUTHORITY_FILE}",target="${X11AUTHORITY_FILE}" \
+        --mount type=bind,src=./c-workspace,dst=/root/workspace/c \
+        --mount type=bind,src=./python-workspace,dst=/root/workspace/python \
+        --mount type=bind,src=./images,dst=/root/workspace/images \
+        --name "${CONTAINER_NAME}" \
+        "${IMAGE_NAME}" \
+        bash
+}
+
+image_run() {
+    if [[ "$(uname)" == "Linux" && "${XDG_SESSION_TYPE}" == "tty" ]]; then
+        debug "so head?"
+        image_run_head
+    else
+        debug "so no head?"
+        image_run_headless
+    fi
+}
+
+container_drop_into_bash_prompt() {
+    if ! $CONTAINER_EXISTS; then
+        info "${CONTAINER_NAME} does is not exist"
+        info "creating container then dropping into bash prompt..."
+        image_run
+        local exit_code="$?"
+        log_exit_code "$exit_code"
+        return "$exit_code"
+    fi
+
+    if ! $CONTAINER_IS_RUNNING; then
+        info "${CONTAINER_NAME} exists but is not running, starting it..."
+        docker start "${CONTAINER_NAME}"
+    fi
+
+    info "you're inside container ${CONTAINER_NAME}..."
+    docker exec -it "${CONTAINER_NAME}" bash
+    local exit_code="$?"
+    log_exit_code "$exit_code"
+    return "$exit_code"
+}
+
+
+container_stop() {
+    docker stop "${CONTAINER_NAME}"
+}
+
+container_rm() {
+    if $CONTAINER_EXISTS; then
+        info "removing container ${CONTAINER_NAME}..."
+        if $CONTAINER_IS_RUNNING; then
+            info "${CONTAINER_NAME} was running, stopping it before deleting..."
+            container_stop
+        fi
+        docker rm "${CONTAINER_NAME}"
+    else
+        warn "cannot remove container ${CONTAINER_NAME}, it doesn't exist!"
+    fi
+}
+
+ensure_docker_is_running() {
+    # linux specific
+    # and systemd specific
+    # not my problem, I'm running on linux and systemd
+    if [[ "$(uname)" == 'Linux' ]]; then
+        if [[ $(systemctl is-active docker) == 'inactive' ]]; then
+            info "docker system is not active, activating..."
+            info "(requires sudo password)"
+            systemctl start docker
+        fi
+    fi
+}
+
+main() {
+    # some setup steps before we can do anything else 
+    ensure_docker_is_running
+    set_global_container_flags
+
+    # default behaviour, if no args passed, just run the container
+    # snippet to check if no args were given taken from 
+    #     https://unix.stackexchange.com/questions/25945
+    #     How to check if there are no parameters provided to a command?
+    if [[ "$#" == '0' ]]; then
+        info "no arguments were passed, default behaviour"
+        container_drop_into_bash_prompt
+        exit 0
+    fi
+
+    # run all commands given by the user sequentially
+    local arg
+    for arg in "$@"; do
+        case "${arg}" in 
+            'build') image_build ;;
+            'run') container_drop_into_bash_prompt ;;
+            'shell') container_drop_into_bash_prompt ;;
+            'stop') container_stop ;;
+            'rm') container_rm ;;
+            *) fatal "unrecognized command" ;;
+        esac
+    done
+}
+
+if ( return 0 2>/dev/null ); then
+    debug "being sourced"
+    # if you can call return then you're being sourced
+    # do nothing, library code shouldn't start a main
+    true
+else
+    debug "being run"
+    # you're not being sourced, start the main
+    main "$@"
+fi

@@ -1,0 +1,44 @@
+having as input file a plaintext kjv bible (file used is ~kjv.txt~) the various implementations took
+
+(times for one run)
+| implementation                    | runtime | notes                             |
+|-----------------------------------+---------+-----------------------------------|
+| numpy                             |         |                                   |
+| bqn                               |         |                                   |
+| opencl (naive, global acces)      |         | no local work size given          |
+| opencl (sectioned, global access) |         | section size used: 64             |
+| opencl (naive, privatization)     | 0.00115 | local work size used: 256         |
+| opencl (sectioned, privatization) |         | local work: 256, section size: 64 |
+|                                   |         |                                   |
+
+varying the opencl section lengths for the naive global memory case we get runtimes of
+| section size | runtime |
+|--------------+---------|
+|           16 |         |
+|           32 |         |
+|           64 |         |
+|          128 |         |
+|          256 |         |
+
+varying local work size for the naive privatized case we get runtimes of
+| section size | runtime         |
+|--------------+-----------------|
+|          256 | 0.00115         |
+|          512 | <runtime error> |
+|         1024 | <runtime error> |
+it seems appears my intel iris does not support work groups larger than 256
+I think
+it bugs out with 257 but is fine with 255 or even something like 128
+
+if, still in the naive implementation, we also allow for local work sizes less than the histogram length
+(ie, we gotta compute calculate local indices within the histogram)
+we get runtimes of
+| section size | runtime |
+|--------------+---------|
+|           16 |         |
+|           32 |         |
+|           64 |         |
+|          128 |         |
+|          256 |         |
+|          512 |         |
+|         1024 |         |

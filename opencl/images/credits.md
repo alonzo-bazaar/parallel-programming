@@ -1,0 +1,7 @@
+- [`unequalized.jpg` from here](https://commons.wikimedia.org/wiki/File:Unequalized_Hawkes_Bay_NZ.jpg)
+- [`equalized.jpg` from here](https://commons.wikimedia.org/wiki/File:Equalized_Hawkes_Bay_NZ.jpg)
+- [`brit.jpg` from here](https://commons.wikimedia.org/wiki/File:People_at_work_in_Wartime-_Everyday_Life_in_Wartime_Britain,_1940_D1039.jpg)
+- [`tree-sun.jpg` from here](https://commons.wikimedia.org/wiki/File:DSC_5557_-_Flickr_-_lwtt93.jpg)
+- [`peters.png` from here](https://commons.wikimedia.org/wiki/File:Portrait_of_S.J_Peters.png)
+- [`church.jpg` from here](https://commons.wikimedia.org/wiki/File:Westminster_Church,_2017a.jpg)
+- [`station.jpg` from here](https://commons.wikimedia.org/wiki/File:Penn_Station_Newark_New_Jersey.jpg)
