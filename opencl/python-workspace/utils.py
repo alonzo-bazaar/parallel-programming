@@ -94,12 +94,7 @@ def error_on_diff(expected, actual, test_name=None,
         return True
     return False
 
-def flush():
-    sys.stdout.flush()
-
 def compile_file(filename:str, ctx:cl.Context):
     with open(filename, 'r') as file:
         src = file.read().strip()
         return cl.Program(ctx, src).build()
-
-    
