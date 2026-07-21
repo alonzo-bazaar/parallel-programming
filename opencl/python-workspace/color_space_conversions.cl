@@ -1,110 +1,105 @@
-// https://en.wikipedia.org/wiki/HSL_and_HSV
+// https://en.wikipedia.org/wiki/HSL_and_HSL
+// https://sqlpey.com/algorithm/hsl-rgb-conversion-implementations/#solution-4-java-implementation-float-precision-required
 // 
-// NOTE: we wanna represent an hsv pixel as a uchar3 (or uchar4) as well
-// this means we'll have to remap the usual hsv value ranges
+// NOTE: we wanna represent an hsl pixel as a uchar3 (or uchar4) as well
+// this means we'll have to remap the usual hsl value ranges
 // (or at least the ones used in the wikipedia page)
-// hue:        [0-360] -> [0-255]
-// saturation: [0-1]   -> [0-255]
-// value:      [0-1]   -> [0-255]
+// hue:        [0-360] <-> [0-255]
+// saturation: [0-1]   <-> [0-255]
+// value:      [0-1]   <-> [0-255]
+#define MAX2(a, b) ((a>b)?a:b)
+#define MIN2(a, b) ((a<b)?a:b)
+#define MAX3(a, b, c) ((a>b)?MAX2(a,c):MAX2(b,c))
+#define MIN3(a, b, c) ((a<b)?MIN2(a,c):MIN2(b,c))
 
-#define max2(a, b) (a>b?a:b)
-#define max3(a, b, c) (a>b?max2(a,c):max2(b,c))
+uchar f2uchar(const float mag) {
+    return (uchar)fmin(255, (mag * 256.0f));
+}
+float uchar2f(const uchar mag) {
+    return ((float)mag) / 255.0f;
+}
 
-#define min2(a, b) (a<b?a:b)
-#define min3(a, b, c) (a<b?min2(a,c):min2(b,c))
-
-// the wikipedia article uses this one magnitude a lot
-#define HUE_SLICE_SIZE ((uchar)(UCHAR_MAX/6))
-
-// to divide two 0-1 values represented as 0-255
-// into a third 0-1 value represented as 0-255
-// so, for instance divide the r channel by the g channel and get a value you can
-// put into another image channel
-// no clue what the order of operations is so fully parenthesize everything
-#define CH_DIV(a, b)  ( (uchar)(( (((ushort)a) * 256) / b )) )
-#define CH_MUL(a, b)  ( (uchar)(( (((ushort)a) * b) / 256 )) )
-
-// https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae
 // for a single pixel first
-uchar3 to_hsv(const uchar r, const uchar g, const uchar b) {
-    // https://en.wikipedia.org/wiki/HSL_and_HSV#From_RGB
-    // https://en.wikipedia.org/wiki/HSL_and_HSV#General_approach
-    const uchar x_max = max3(r,g,b);
-    const uchar x_min = min3(r,g,b);
+// https://en.wikipedia.org/wiki/HSL_and_HSL#From_RGB
+// https://en.wikipedia.org/wiki/HSL_and_HSL#General_approach
+uchar3 rgb2hsl_pixel(const uchar r, const uchar g, const uchar b) {
+    const uchar u_max = MAX3(r,g,b);
+    const uchar u_min = MIN3(r,g,b);
 
-    // chroma (ie: range)
-    const uchar c = x_max - x_min;
-    // value
-    const uchar v = x_max;
-    // saturation
-    const uchar s = v==0?0:CH_DIV(c,v);
-    // hue
-    const uchar h = (c==0?0
-                       // which one was the max? r, g, or b?
-                       :v==r?    (((((short)HUE_SLICE_SIZE*((short)g-b)/c)) + 6) % 6)
-                       :v==g?      (((short)HUE_SLICE_SIZE*((short)b-r)/c)  + 2)
-                       :/*v==b?*/  (((short)HUE_SLICE_SIZE*((short)r-g)/c)  + 4));
-    return (uchar3){h, s, v};
-}
+    // r, g, and b as floats I can operate on
+    const float rf = uchar2f(r);
+    const float gf = uchar2f(g);
+    const float bf = uchar2f(b);
+    const float f_max = MAX3(rf, gf, bf);
+    const float f_min = MIN3(rf, gf, bf);
 
-
-// https://en.wikipedia.org/wiki/HSL_and_HSV#HSV_to_RGB_alternative
-// k   : {0, 1, 2, 3, 4,  5}
-// 4-k : {4, 3, 2, 1, 0, -1}
-// 1   : {1, 1, 1, 1, 1,  1}
-// 0   : {0, 0, 0, 0, 0,  0}
-// max(0, min(k, 4-k, 1)) =
-__constant static const uchar karr[6] = {0, 1, 1, 1, 0, 1};
-uchar to_rgb_f(const uchar h, const char s, const uchar v, const uchar n) {
-    const uchar i = ((n + (h/HUE_SLICE_SIZE))+6) %6;
-    const uchar k = karr[i];
-    return v - (k * CH_MUL(v, s));
-}
-
-uchar3 to_rgb(const uchar h, const uchar s, const uchar v) {
-    return (uchar3) {
-        to_rgb_f(h, s, v, 5),
-        to_rgb_f(h, s, v, 3),
-        to_rgb_f(h, s, v, 1),
-    };
-}
-
-/*
-uchar4 to_rgba(const uchar h, const uchar s, const uchar v, const uchar a) {
-    const uchar3 rgb = to_rgb(h, s, v);
-    return (uchar4){rgb.x, rgb.y, rgb.z, a};
-}
-uchar4 to_hsva(const uchar r, const uchar g, const uchar b, const uchar a) {
-    const uchar3 hsv = to_hsv(r, g, b);
-    return (uchar4){hsv.x, hsv.y, hsv.z, a};
-}
-*/
-
-// kernels to convert a whole image at once
-__kernel void rgb2hsv(const __global uchar* rgb_img,
-                      __global uchar* hsv_img,
-                      const uint n_pixels) {
-    const uint i = get_global_id(0);
-    if(i<n_pixels) {
-        const __global uchar*rgb_ptr = rgb_img + (i*3);
-        __global uchar*hsv_ptr = hsv_img + (i*3);
-        const uchar3 hsv = to_hsv(rgb_ptr[0], rgb_ptr[1], rgb_ptr[2]);
-        hsv_ptr[0]=hsv.x;
-        hsv_ptr[1]=hsv.y;
-        hsv_ptr[2]=hsv.z;
+    const float lf = (f_max+f_min)/2.0f;
+    if(u_max == u_min)
+        return (uchar3){0, 0, f2uchar(lf)};
+    else {
+        const float df = f_max - f_min;
+        const float sf = (lf>0.5f) ?df/(2.0f-f_max-f_min) :df/(f_max+f_min);
+        float hf;
+        if(u_max == r) hf = (gf-bf) / df+(g<b?6.0f:0.0f);
+        if(u_max == g) hf = (bf-rf) / df+2.0f;
+        if(u_max == b) hf = (bf-rf) / df+2.0f;
+        hf /= 6.0f;
+        return (uchar3){f2uchar(hf), f2uchar(sf), f2uchar(lf)};
     }
 }
 
-__kernel void hsv2rgb(const __global uchar* hsv_img,
+float hue2rgb(float p, float q, float t) {
+    if (t < 0.0f) t += 1.0f;
+    if (t > 1.0f) t -= 1.0f;
+    if (t < 1.0f/6.0f) return p + (q - p) * 6.0f * t;
+    if (t < 1.0f/2.0f) return q;
+    if (t < 2.0f/3.0f) return p + (q - p) * (2.0f/3.0f - t) * 6.0f;
+    return p;
+}
+uchar3 hsl2rgb_pixel(const uchar h, const uchar s, const uchar l) {
+    const float hf = uchar2f(h);
+    const float sf = uchar2f(s);
+    const float lf = uchar2f(l);
+
+    if(s == 0) {
+        return (uchar3){l, l, l};
+    }
+    else {
+        const float qf = lf<0.5f ?lf*(1+sf) :lf+sf-lf*sf;
+        const float pf = 2*lf-qf;
+        return (uchar3) {
+            f2uchar(hue2rgb(pf, qf, hf + 1.0f/3.0f)),
+            f2uchar(hue2rgb(pf, qf, hf)),
+            f2uchar(hue2rgb(pf, qf, hf - 1.0f/3.0f))
+        };
+    }
+}
+
+// kernels to convert a whole image at once
+__kernel void rgb2hsl(const __global uchar* rgb_img,
+                      __global uchar* hsl_img,
+                      const uint n_pixels) {
+    const uint i = get_global_id(0);
+    if(i<n_pixels) {
+        const __global uchar*rgb_pxl = rgb_img + (i*3);
+        __global uchar*hsl_pxl = hsl_img + (i*3);
+        const uchar3 hsl = rgb2hsl_pixel(rgb_pxl[0], rgb_pxl[1], rgb_pxl[2]);
+        hsl_pxl[0]=hsl.x;
+        hsl_pxl[1]=hsl.y;
+        hsl_pxl[2]=hsl.z;
+    }
+}
+
+__kernel void hsl2rgb(const __global uchar* hsl_img,
                       __global uchar* rgb_img,
                       const uint n_pixels) {
     const uint i = get_global_id(0);
     if(i<n_pixels) {
-        const __global uchar*hsv_ptr = hsv_img + (i*3);
-        __global uchar*rgb_ptr = rgb_img + (i*3);
-        const uchar3 rgb = to_rgb(hsv_ptr[0], hsv_ptr[1], hsv_ptr[2]);
-        rgb_ptr[0]=rgb.x;
-        rgb_ptr[1]=rgb.y;
-        rgb_ptr[2]=rgb.z;
+        const __global uchar*hsl_pxl = hsl_img + (i*3);
+        __global uchar*rgb_pxl = rgb_img + (i*3);
+        const uchar3 rgb = hsl2rgb_pixel(hsl_pxl[0], hsl_pxl[1], hsl_pxl[2]);
+        rgb_pxl[0]=rgb.x;
+        rgb_pxl[1]=rgb.y;
+        rgb_pxl[2]=rgb.z;
     }
 }

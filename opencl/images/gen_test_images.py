@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import numpy as np
 from PIL import Image
 
@@ -17,41 +19,47 @@ def horizontal_gradient(width:int, height:int, start:tuple, end:tuple):
     image_pixels = np.stack([pixel_row for _ in range(height)])
     return Image.fromarray(image_pixels, 'RGB')
 
-i = 0
-print('starting')
-horizontal_gradient(100, 100, (1,0,0), (1,1,1)).save('./test_red_to_white.png')
-print(f'image number {i}')
-i+=1
-horizontal_gradient(100, 100, (0,1,0), (1,1,1)).save('./test_green_to_white.png')
-print(f'image number {i}')
-i+=1
-horizontal_gradient(100, 100, (0,0,1), (1,1,1)).save('./test_blue_to_white.png')
-print(f'image number {i}')
-i+=1
-horizontal_gradient(100, 100, (1,1,0), (1,1,1)).save('./test_yellow_to_white.png')
-print(f'image number {i}')
-i+=1
-horizontal_gradient(100, 100, (0,1,1), (1,1,1)).save('./test_turquoise_to_white.png')
-print(f'image number {i}')
-i+=1
-horizontal_gradient(100, 100, (1,0,1), (1,1,1)).save('./test_purple_to_white.png')
-print(f'image number {i}')
-i+=1
-horizontal_gradient(100, 100, (1,0,0), (0,0,0)).save('./test_red_to_black.png')
-print(f'image number {i}')
-i+=1
-horizontal_gradient(100, 100, (0,1,0), (0,0,0)).save('./test_green_to_black.png')
-print(f'image number {i}')
-i+=1
-horizontal_gradient(100, 100, (0,0,1), (0,0,0)).save('./test_blue_to_black.png')
-print(f'image number {i}')
-i+=1
-horizontal_gradient(100, 100, (1,1,0), (0,0,0)).save('./test_yellow_to_black.png')
-print(f'image number {i}')
-i+=1
-horizontal_gradient(100, 100, (0,1,1), (0,0,0)).save('./test_turquoise_to_black.png')
-print(f'image number {i}')
-i+=1
-horizontal_gradient(100, 100, (1,0,1), (0,0,0)).save('./test_purple_to_black.png')
-print(f'image number {i}')
-i+=1
+colors = {
+    'red' : (1, 0, 0),
+    'green' : (0, 1, 0),
+    'blue' : (0, 0, 1),
+
+    'yellow' : (1, 1, 0),
+    'orange' : (1, 0.5, 0),
+    'turquoise' : (0, 1, 1),
+    'purple' : (1, 0, 1),
+
+    'white' : (1, 1, 1),
+    'black' : (0, 0, 0),
+}
+
+def target(startcol:str, endcol:str):
+    return (colors[startcol],
+            colors[endcol],
+            f"./test_{startcol}_to_{endcol}.png")
+
+def cat(*args):
+    res = []
+    for arg in args:
+        if type(arg) == list:
+            res.extend(arg)
+        else:
+            res.append(arg)
+    return res
+
+ims = cat(
+    [target(c, 'black')
+        for c in colors.keys()
+        if c != 'black'],
+    [target(c, 'white')
+        for c in colors.keys()
+        if c != 'white'],
+    [target(a, b)
+        for a in ['red', 'green', 'blue']
+        for b in ['red', 'green', 'blue']
+        if a != b]
+)
+
+for (start_color, end_color, name) in ims:
+    print(f'generating image "{name}"...')
+    horizontal_gradient(100, 100, start_color, end_color).save(name)
