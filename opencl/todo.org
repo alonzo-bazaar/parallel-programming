@@ -1,0 +1,25 @@
+* openmp
+build scripts in shsl per ridere
+benchmarking scripts in shsl per ridere
+crea benchmark target
+fissa numero di iterazioni e fallo solo
+- per tot diversi numeri di thread
+- per tot diversi numeri di boid
+
+* opencl
+benchmark different histogram approaches
+- numpy
+- global
+- privatized
+
+for naive and privatized try the sectioned versions first then go with the naive ones anyway
+supercazzola su hsl
+fai che hsl si fa il naive e tanti saluti
+poi port a c così non s'incazza che hai fatto tutto in python (con build script in shsl per ridere)
+
+per il benchmark finale fai
+- privatized sectioned con tot dimensioni
+- privatized naive
+per tot immagini diverse
+prova su immagini 'organiche' e su immagini 'sintetiche' e vedi se cambia tempo
+se non cambia tempo fa tutte immagini sintetiche che più facile avere diverse robe

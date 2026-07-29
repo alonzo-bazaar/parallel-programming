@@ -26,57 +26,66 @@ if $DEBUG; then
     export DEBUG=$DEBUG
     set -u;
 fi
-. ./tools/utils.bash # colouring, logging, and some general utilities
+. ../tools/utils.bash # colouring, logging, and some general utilities
 
+# as an initial check, if the docker daemon is not running the script should just
+# die immediately and tell the user to start the docker daemon then run the script
+#
+# docker info exits with error code 1 if the docker deamon is not running
+# we're gonna use this as our mechanism to determine wether docker is running
+if ! ( docker info &> /dev/null ) ; then
+    fatal-preface "docker daemon must be running for container script to work"
+    fatal-preface "start docker then rerun the script"
+    fatal "can't go any further until docker daemon is running"  
+fi
+
+# some global variables we're gonna need throughout the script
 IMAGE_NAME='ocl-dev-env'
 CONTAINER_NAME='feel-so-clean-like-a-dev-machine'
-
-image_build() {
-    docker image build . -t "${IMAGE_NAME}"
-}
 
 CONTAINER_EXISTS=
 CONTAINER_IS_RUNNING=
 
-# sets the CONTAINER_EXISTS and CONTAINER_IS_RUNNING flags to their
-# appropriate values
-set_global_container_flags() {
-    # docker container inspect exits with an error code 1 if the container
-    # does not exist, we'll use this behaviour as our way to query for
-    # container existance
-    if docker container inspect "${CONTAINER_NAME}" &>/dev/null ; then
-        debug "container exists"
-        CONTAINER_EXISTS=true
-    else
-        debug "container does not exist"
-        CONTAINER_EXISTS=false
-    fi
+# docker container inspect exits with an error code 1 if the container
+# does not exist, we'll use this behaviour as our way to query for
+# container existance
+if docker container inspect "${CONTAINER_NAME}" &>/dev/null ; then
+    debug "container exists"
+    CONTAINER_EXISTS=true
+else
+    debug "container does not exist"
+    CONTAINER_EXISTS=false
+fi
 
-    # docker container inspect also provides a fair bit of information about
-    # the container (when it exists)
-    # this information includes wether the container is running running
-    # and since it provides it all in a rather big json dump... jq time
-    if $CONTAINER_EXISTS ; then
-        debug "container exists, checking if it's running"
-        # note: this line means I'm taking a 'true' or 'false' string from json
-        # object then using it as a bash "boolean"
-        # (string that's either literal 'true' or literal 'false', and gets run,
-        #  which invokes either the `true` builtin or the `false` builtin, and
-        #  then the builtin that we just ran is what returns either
-        #  0 (true) or 1 (false))
-        #
-        # so... I'm implicitly compiling a subset of json to subset bash
-        CONTAINER_IS_RUNNING="$(docker container inspect "${CONTAINER_NAME}"\
-            | jq '.[0].State.Running')"
-    else
-        debug "container does not exist, and is therefore not running"
-        CONTAINER_IS_RUNNING=false
-    fi
+# docker container inspect also provides a fair bit of information about
+# the container (when it exists)
+# this information includes wether the container is running running
+# and since it provides it all in a rather big json dump... jq time
+if $CONTAINER_EXISTS ; then
+    debug "container exists, checking if it's running"
+    # note: this line means I'm taking a 'true' or 'false' string from json
+    # object then using it as a bash "boolean"
+    # (string that's either literal 'true' or literal 'false', and gets run,
+    #  which invokes either the `true` builtin or the `false` builtin, and
+    #  then the builtin that we just ran is what returns either
+    #  0 (true) or 1 (false))
+    #
+    # so... I'm implicitly compiling a subset of json to subset bash
+    # where's my turing award?
+    CONTAINER_IS_RUNNING="$(docker container inspect "${CONTAINER_NAME}"\
+        | jq '.[0].State.Running')"
+else
+    debug "container does not exist, and is therefore not running"
+    CONTAINER_IS_RUNNING=false
+fi
 
-    debug "continer exists?: ${CONTAINER_EXISTS}"
-    debug "continer is_running?: ${CONTAINER_IS_RUNNING}"
+debug "continer exists?: ${CONTAINER_EXISTS}"
+debug "continer is_running?: ${CONTAINER_IS_RUNNING}"
+
+# and here are all the things our script can do
+image_build() {
+    docker image build . -t "${IMAGE_NAME}"
 }
-
 
 # in docker running an image means creating a process (container)
 # that runs that image, so the comamnd to create a container is called
@@ -94,6 +103,7 @@ image_run_headless() {
         --mount type=bind,src=./c-workspace,dst=/root/workspace/c \
         --mount type=bind,src=./python-workspace,dst=/root/workspace/python \
         --mount type=bind,src=./images,dst=/root/workspace/images \
+        --mount type=bind,src=../tools,dst=/root/workspace/tools \
         --name "${CONTAINER_NAME}" \
         "${IMAGE_NAME}" \
         bash
@@ -113,32 +123,33 @@ image_run_head() {
 
     # Create XAuthority file for the container
     export X11AUTHORITY_FILE=/tmp/.docker.xauth
-    touch ${X11AUTHORITY_FILE}
+    touch "${X11AUTHORITY_FILE}"
 
-    DISPLAY_CANONICAL=$(echo $DISPLAY | sed s/localhost//)
+    DISPLAY_CANONICAL="$(echo "${DISPLAY}" | sed s/localhost//)"
 
-    if [ $DISPLAY_CANONICAL != $DISPLAY ]
+    if [[ "${DISPLAY_CANONICAL}" != "${DISPLAY}" ]]
     then
-        export DISPLAY=$DISPLAY_CANONICAL
+        export DISPLAY="${DISPLAY_CANONICAL}"
     fi
 
     # Allow any host to connect to this X server
-    xauth nlist ${DISPLAY} | sed -e 's/^..../ffff/' | uniq | xauth -f ${X11AUTHORITY_FILE} nmerge -
+    xauth nlist "${DISPLAY}" | sed -e 's/^..../ffff/' | uniq | xauth -f "${X11AUTHORITY_FILE}" nmerge -
 
     docker run\
         -it \
         --rm \
-        -e XAUTHORITY=${X11AUTHORITY_FILE} \
-        -e DISPLAY=${DISPLAY} \
+        -e "XAUTHORITY=${X11AUTHORITY_FILE}" \
+        -e "DISPLAY=${DISPLAY}" \
         --device '/dev/dri' \
         --device '/dev/snd' \
         --network host \
         --cap-add=NET_RAW \
-        --mount type=bind,source="${X11SOCKET_FOLDER}",target="${X11SOCKET_FOLDER}" \
-        --mount type=bind,source="${X11AUTHORITY_FILE}",target="${X11AUTHORITY_FILE}" \
+        --mount "type=bind,source=${X11SOCKET_FOLDER},target=${X11SOCKET_FOLDER}" \
+        --mount "type=bind,source=${X11AUTHORITY_FILE},target=${X11AUTHORITY_FILE}" \
         --mount type=bind,src=./c-workspace,dst=/root/workspace/c \
         --mount type=bind,src=./python-workspace,dst=/root/workspace/python \
         --mount type=bind,src=./images,dst=/root/workspace/images \
+        --mount type=bind,src=../tools,dst=/root/workspace/tools \
         --name "${CONTAINER_NAME}" \
         "${IMAGE_NAME}" \
         bash
@@ -194,24 +205,9 @@ container_rm() {
     fi
 }
 
-ensure_docker_is_running() {
-    # linux specific
-    # and systemd specific
-    # not my problem, I'm running on linux and systemd
-    if [[ "$(uname)" == 'Linux' ]]; then
-        if [[ $(systemctl is-active docker) == 'inactive' ]]; then
-            info "docker system is not active, activating..."
-            info "(requires sudo password)"
-            systemctl start docker
-        fi
-    fi
-}
-
+# main function that just sees what the user tells it to do and does it using
+# the functions above
 main() {
-    # some setup steps before we can do anything else 
-    ensure_docker_is_running
-    set_global_container_flags
-
     # default behaviour, if no args passed, just run the container
     # snippet to check if no args were given taken from 
     #     https://unix.stackexchange.com/questions/25945
@@ -222,7 +218,7 @@ main() {
         exit 0
     fi
 
-    # run all commands given by the user sequentially
+    # run all commands given by the user, sequentially
     local arg
     for arg in "$@"; do
         case "${arg}" in 

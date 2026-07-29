@@ -31,8 +31,7 @@ class TimedBlock:
         self.log_end = log_end
 
         self.trail_empty_line = trail_empty_line
-        if append_time_into is not None:
-            self.append_time_into=append_time_into
+        self.append_time_into=append_time_into
 
     def __enter__(self):
         self.t = time.time()
@@ -71,9 +70,11 @@ def plot_compare_histograms(expected, actual):
 
     plt.show()
 
-def error_on_diff(expected, actual, test_name=None,
+def error_on_diff(expected, actual,
+                  test_name=None,
                   log_expected=False, log_actual=False, log_diff=False,
-                  plot_diff=False):
+                  plot_diff=False,
+                  die_on_error=False):
 
     if not np.all(expected == actual):
         tn_note=f", in test [{test_name}]" if test_name is not None else ""
@@ -91,6 +92,8 @@ def error_on_diff(expected, actual, test_name=None,
         if plot_diff:
             print("plotting...")
             plot_compare_histograms(expected, actual)
+        if die_on_error:
+            sys.exit(1)
         return True
     return False
 

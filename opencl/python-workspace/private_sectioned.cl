@@ -4,11 +4,11 @@
 // local buffers must either be of constant length (ie __local uint buf[256])
 // or be passed to the kernel by the caller as local memory objects
 // which is what we're gonna do here because idk, seems more general
-__kernel void private_histogram_sectioned (const __global uchar* input,
-                                           __global uint* global_hist,
-                                           __local uint* local_hist,
-                                           const uint input_size,
-                                           const uint hist_size) {
+__kernel void full_hist(const __global uchar* input,
+                        __global uint* global_hist,
+                        __local uint* local_hist,
+                        const uint input_size,
+                        const uint hist_size) {
     const uint gi = get_global_id(0);
     const uint li = get_local_id(0);
 

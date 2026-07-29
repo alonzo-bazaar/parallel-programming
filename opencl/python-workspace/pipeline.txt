@@ -1,0 +1,85 @@
+image file
+|
+V
+image array (cpu)       histogram array (cpu)
+(rgb image)             (zero'd out)
+|                       |
+V                       V
+ _________________________________________
+/                                         \
+| copy the numpy arrays to opencl buffers |
+\_________________________________________/
+|                       |
+|                       |
+V                       V
+image array (gpu)       histogram array (gpu)
+(rgb image)             (zero'd out)
+|                       |
+|                       |
+V                       |
+ ___________________    | 
+/                   \   | 
+| rgb2hsl kernel    |   |
+| image array (gpu) |   |
+| (hsl image)       |   | 
+\___________________/   |
+|                       |
+V                       V
+ ____________________________
+/                            \
+| histogram computing kernel |
+\ ___________________________/
+|                       |
+|                       |
+V                       V
+image array (gpu)       histogram array (gpu)
+(hsl image)             (contains histogram of l channel of the hsl image)
+(unaltered)             |
+|                       |
+|                       V
+|                        ______________________ 
+|                       /                      \
+|                       | addition scan kernel |
+|                       \______________________/
+|                       |
+|                       V
+|                       CDF of the histogram of the l channel (gpu)
+|                       |
+V                       V
+ _______________________________
+/                               \
+| histogram equalization kernel |
+\_______________________________/
+|                       |
+|                       |
+V                       V
+image array (gpu)       CDF of the histogram of the l channel (gpu)
+(hsl image)             (unaltered)
+(l channel has been
+ histogram normalized)
+|
+V
+ ________________
+/                \
+| hsl2rgb kernel |
+\________________/
+|
+|
+V
+image array (gpu)
+(rgb image)
+(luminosity has been normalized)
+|
+V
+ _________________________________________
+/                                         \
+| copy the opencl buffer to a numpy array |
+\_________________________________________/
+|
+|
+V
+image array (cpu)
+(rgb image)
+(luminosity has been normalized)
+
+quod erat computandum

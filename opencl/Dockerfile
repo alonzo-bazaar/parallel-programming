@@ -18,9 +18,6 @@ LABEL autor="Sto Cazzo"
 # just not at build time, so ARG instead of ENV for this
 ARG DEBIAN_FRONTEND=noninteractive
 
-# directory containing some tools used for development and setup
-COPY ./tools/ /root/tools/
-
 # install apt dependencies
 RUN apt update -y && apt upgrade -y
 # essentials
@@ -32,6 +29,7 @@ RUN apt install -y python3 python3-pip python-is-python3
 # opencl and intel opencl
 RUN apt install -y ocl-icd-libopencl1 ocl-icd-opencl-dev\
                    opencl-headers clinfo intel-opencl-icd
+
 # for displaying images and plots from within the container
 # this is ideed overkill, but I can't tell how much overkill
 # and I can't tell where is it overkill?
@@ -66,3 +64,5 @@ RUN pip3 install PyQt5 matplotlib pillow
 # like volumes, which is what I initially considered
 RUN mkdir -p /root/workspace/c
 RUN mkdir -p /root/workspace/python
+RUN mkdir -p /root/workspace/tools
+ENV PATH="$PATH:/root/workspace/tools"

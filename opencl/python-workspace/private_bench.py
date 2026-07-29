@@ -18,9 +18,8 @@ np_times=[]
 pn_times=[]
 ps_times=[]
 
-pn_hist_ker = compile_file('private_naive.cl', ctx).private_naive
-ps_hist_ker = compile_file('private_histogram_sectioned.cl', ctx)\
-    .private_histogram_sectioned
+pn_hist_ker = compile_file('private_naive.cl', ctx).full_hist
+ps_hist_ker = compile_file('private_sectioned.cl', ctx).full_hist
 
 
 def compare_times(kjv_repeats:int = 1, skip_numpy:bool=False):
