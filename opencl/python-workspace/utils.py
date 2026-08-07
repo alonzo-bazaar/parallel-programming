@@ -56,6 +56,13 @@ class TimedBlock:
             self.append_time_into.append(t)
 
 # plotting utilities
+def diff(expected, actual):
+    if expected.dtype in [np.int8, np.int16,np.int32, np.int64,
+                          np.uint8, np.uint16, np.uint32, np.uint64]:
+        return expected.astype(np.int64)-actual.astype(np.int64)
+    else:
+        return expected.astype(np.float64)-actual.astype(np.float64)
+
 def plot_compare_histograms(expected, actual):
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
 
@@ -66,7 +73,7 @@ def plot_compare_histograms(expected, actual):
     ax2.bar(np.arange(len(actual)), actual)
 
     ax3.set_title("absolute value of difference")
-    ax3.bar(np.arange(len(expected)), abs(expected - actual))
+    ax3.bar(np.arange(len(expected)), diff(expected, actual))
 
     plt.show()
 
@@ -77,7 +84,7 @@ def error_on_diff(expected, actual,
                   die_on_error=False):
 
     if not np.all(expected == actual):
-        tn_note=f", in test [{test_name}]" if test_name is not None else ""
+        tn_note=f" in test [{test_name}]" if test_name is not None else ""
         print(f"now you fucked up!{tn_note}")
 
         if log_expected:
@@ -87,8 +94,13 @@ def error_on_diff(expected, actual,
             print("got value:")
             print(actual)
         if log_diff:
+            d = diff(expected, actual)
             print("the difference is:")
-            print(expected-actual)
+            print(d)
+            print("at indices:")
+            print(d.nonzero()[0])
+            print("where it is:")
+            print(d[d.nonzero()[0]])
         if plot_diff:
             print("plotting...")
             plot_compare_histograms(expected, actual)
