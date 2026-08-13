@@ -1,75 +1,108 @@
 #!/usr/bin/env python3
-
 import numpy as np
 import pyopencl as cl
+mf = cl.mem_flags
 
-from utils import TimedBlock, error_on_diff, compile_file
-import os, sys
+from utils import TimedBlock, error_on_diff, compile_file, round_up_to_divide
+import os, sys, copy, functools
 
+# global settings and variables
+# settings
 os.environ['PYOPENCL_COMPILER_OUTPUT']='1'
 os.environ['PYOPENCL_CTX']='1'
 
+# opencl global things
 ctx = cl.create_some_context(interactive=False)
 queue = cl.CommandQueue(ctx)
 
-mf = cl.mem_flags
-data_length = 8123
-data_np=np.ones(data_length, dtype=np.uint32)
-data_dev = cl.Buffer(ctx, 0, data_np.nbytes)
-cl.enqueue_copy(queue, data_dev ,data_np)
-queue.finish()
-
-with TimedBlock("baseline"):
-    baseline = np.cumsum(data_np) # welcome to the cumsum
-
+# compile kernels only once
 scans_prog = compile_file('scans.cl', ctx)
 ungodly = scans_prog.ungodly
-
 kogge_stone_block_scan = scans_prog.kogge_stone_block_scan
 kogge_stone_last_elem_scan = scans_prog.kogge_stone_last_elem_scan
 kogge_stone_filling_pass = scans_prog.kogge_stone_filling_pass
 
-skip_ungodly=True
-if not skip_ungodly:
-    # prepare input for ungodly
-    data_np=np.ones(data_length, dtype=np.uint32)
+curr_kernel_test_name=None
+curr_kernel_compare_kwargs = {
+    'log_expected' :True,
+    'log_actual'   :True,
+    'log_diff'     :True,
+    #'plot_diff'    :True,
+    'die_on_error' :True,
+}
+
+# https://realpython.com/primer-on-python-decorators/#finding-yourself
+# https://realpython.com/primer-on-python-decorators/#defining-decorators-with-arguments
+def kernel_test(name:str, **kt_kwargs):
+    def kernel_test_decorator(fn):
+        @functools.wraps(fn)
+        def wrapped_kernel_test(*wkt_args, **wkt_kwargs):
+            global curr_kernel_test_name, curr_kernel_compare_kwargs
+
+            # backup old global settings
+            old_kernel_test_name = copy.copy(curr_kernel_test_name)
+            old_kernel_compare_kwargs = copy.copy(curr_kernel_compare_kwargs)
+
+            # update global settings to reflect configuration parameters
+            curr_kernel_test_name = name
+            for k in kt_kwargs.keys():
+                curr_kernel_compare_kwargs[k] = kt_kwargs[k]
+
+            # call wrapped function in this updated global environment
+            res = fn(*wkt_args, **wkt_kwargs)
+
+            # restore old global state
+            curr_kernel_test_name = old_kernel_test_name
+            curr_kernel_compare_kwargs = old_kernel_compare_kwargs
+
+            return res
+        return wrapped_kernel_test
+    return kernel_test_decorator
+
+def compare(expected:np.ndarray, actual:np.ndarray):
+    error_on_diff(expected, actual, test_name=curr_kernel_test_name,
+                  **curr_kernel_compare_kwargs)
+
+def np_cl_ones(length:int):
+    global queue, ctx
+    data_np=np.ones(length, dtype=np.uint32)
+    data_dev = cl.Buffer(ctx, 0, data_np.nbytes)
     cl.enqueue_copy(queue, data_dev ,data_np)
     queue.finish()
-    
-    # run ungodly
+    return data_np, data_dev
+
+def np_cl_ones_like(baseline:np.ndarray):
+    return np_cl_ones(baseline.shape[0])
+
+@kernel_test(name="baseline", die_on_error=False)
+def compute_baseline(length:int):
+    d_np = np.ones(length)
+    with TimedBlock("baseline"):
+        res = np.cumsum(d_np) # welcome to the cumsum
+    return res
+
+@kernel_test(name="ungodly", die_on_error=False)
+def test_ungodly(baseline:np.ndarray):
+    d_np, d_cl = np_cl_ones_like(baseline)
     with TimedBlock("ungodly"):
         ungodly(queue,
-                data_np.shape,
+                d_np.shape,
                 None,
-                data_dev, np.uint32(data_np.shape[0]))
+                d_cl, np.uint32(d_np.shape[0]))
         queue.finish()
-    
-    cl.enqueue_copy(queue, data_np ,data_dev)
+    cl.enqueue_copy(queue, d_np ,d_cl)
     queue.finish()
-    
-    error_on_diff(baseline, data_np, test_name="ungodly",
-                  log_expected=True, log_actual=True, log_diff=True,
-                  # plot_diff=True,
-                  die_on_error=True)
-    data_np = np.ones_like(data_np)
-    cl.enqueue_copy(queue, data_dev ,data_np)
-    queue.finish()
-
-def round_up_to_divide(a, b):
-    if a < b:
-        return b
-    if (a%b) == 0:
-        return a
-    return(a + b - (a%b))
+    compare(d_np, baseline)
+    return d_np
 
 # opencl non ho sto grandissima coordinamento tra kernel
 # quindi qua famo che ne lancio 3 in questo ordine (progressive scan)
 # - uno per fare lo scan di tutti i blocchi
 # - uno per fare lo di tutti i primi elementi dei vari blocchi
 # - e uno per farealla fine che a ogni blocco somma l'inizio dello scannato
-def progressive_kogge_stone(data_np, data_dev):
+def progressive_kogge_stone(d_np:np.ndarray, d_cl:cl.Buffer):
     local_work_size = 50
-    global_work_size = data_np.shape[0]
+    global_work_size = d_np.shape[0]
     global_work_size = round_up_to_divide(global_work_size, local_work_size)
 
     local_work_size = np.uint32(local_work_size)
@@ -79,9 +112,9 @@ def progressive_kogge_stone(data_np, data_dev):
     local_work_shape = (local_work_size,)
 
     # first step in a progressive scan, do a scan of all chunks
-    global_data_size = np.uint32(data_np.shape[0])
+    global_data_size = np.uint32(d_np.shape[0])
     kogge_stone_block_scan(queue, global_work_shape, local_work_shape,
-                           data_dev, global_data_size,
+                           d_cl, global_data_size,
                            cl.LocalMemory(local_work_size * 4),
                            local_work_size)
     queue.finish()
@@ -98,34 +131,41 @@ def progressive_kogge_stone(data_np, data_dev):
     number_of_chunks = np.uint32(number_of_chunks)
     kogge_stone_last_elem_scan(queue,
                                (number_of_chunks,), (number_of_chunks,),
-                               data_dev,         # global data
+                               d_cl,         # global data
                                global_data_size, # global data size
                                cl.LocalMemory(number_of_chunks * 4), # local data
                                number_of_chunks,                     # local data size
                                chunk_size)                           # chunk size
     queue.finish()
+    return
 
     kogge_stone_filling_pass(queue, global_work_shape, local_work_shape,
-                             data_dev,
+                             d_cl,
                              # again, we don't do any coarsening
                              # so data size is equal to work size
                              global_work_size,
                              chunk_size)
     queue.finish()
 
-# prepare input for kogge stone
-data_np=np.ones(data_length, dtype=np.uint32)
-cl.enqueue_copy(queue, data_dev ,data_np)
-queue.finish()
+@kernel_test(name="progressive kogge stone", die_on_error=False)
+def test_progressive(baseline:np.ndarray):
+    d_np, d_cl = np_cl_ones_like(baseline)
+    with TimedBlock("kogge stone"):
+        progressive_kogge_stone(d_np, d_cl)
+    cl.enqueue_copy(queue, d_np ,d_cl)
+    queue.finish()
+    # compare(baseline, d_np)
+    return d_np
 
-# run kogge stone
-with TimedBlock("kogge stone"):
-    progressive_kogge_stone(data_np, data_dev)
+def main():
+    data_length = 8123
+    # baseline = compute_baseline(data_length)
+    baseline = np.ones(data_length)
+    # test_ungodly(baseline)
+    tp = test_progressive(baseline)
 
-cl.enqueue_copy(queue, data_np ,data_dev)
-queue.finish()
+    print(test_progressive(baseline))
 
-error_on_diff(baseline, data_np, test_name="kogge stone",
-              log_expected=True, log_actual=True, log_diff=True,
-              # plot_diff=True,
-              die_on_error=True)
+if __name__=='__main__':
+    main()
+

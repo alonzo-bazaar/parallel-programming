@@ -8,6 +8,14 @@ import sys
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
+# arithmetic and shit
+def round_up_to_divide(a, b):
+    if a < b:
+        return b
+    if (a%b) == 0:
+        return a
+    return(a + b - (a%b))
+
 # timing utilities
 class TimedBlock:
     def __init__(self,
