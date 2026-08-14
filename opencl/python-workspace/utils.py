@@ -139,9 +139,12 @@ curr_kernel_compare_kwargs = {
     'log_expected' :True,
     'log_actual'   :True,
     'log_diff'     :True,
-    #'plot_diff'    :True,
+    'plot_diff'    :False,
     'die_on_error' :True,
 }
+
+def get_curr_kernel_test_name():
+    return curr_kernel_test_name
 
 # decorators to manage the global state in question
 # https://realpython.com/primer-on-python-decorators/#finding-yourself
