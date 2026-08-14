@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+
+# benhcmarking script:
+# run parallel/sequential aos/soa with various sizes and thread numbers
+# and log it all into a nice csv file
+
+# create unique directory for benchmark results
+datenow=$(date -d now '+%Y-%m-%d-%H-%M-%S')
+resdir="results/$datenow"
+
+# ensure output files exists
+s_soa="$resdir/benchmark-sequential-soa.csv"
+p_soa="$resdir/benchmark-parallel-soa.csv"
+s_aos="$resdir/benchmark-sequential-aos.csv"
+p_aos="$resdir/benchmark-parallel-aos.csv"
+
+mkdir -p "$resdir"
+touch "$s_soa"
+touch "$p_soa"
+touch "$s_aos"
+touch "$p_aos"
+
+bench-exe() {
+	local exe="$1"
+	local outfile="$2"
+	$exe --quiet 1 --num-boids 100 --num-threads 1  --num-iterations  8000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 100 --num-threads 2  --num-iterations  8000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 100 --num-threads 4  --num-iterations  8000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 100 --num-threads 8  --num-iterations  8000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 100 --num-threads 16 --num-iterations  8000 --output-file "$outfile"
+
+	$exe --quiet 1 --num-boids 1000 --num-threads 1  -num-iterations  8000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 1000 --num-threads 2  -num-iterations  8000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 1000 --num-threads 4  -num-iterations  8000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 1000 --num-threads 8  -num-iterations  8000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 1000 --num-threads 16 -num-iterations  8000 --output-file "$outfile"
+
+	$exe --quiet 1 --num-boids 10000 --num-threads 1  -num-iterations  8000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 10000 --num-threads 2  -num-iterations  8000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 10000 --num-threads 4  -num-iterations  8000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 10000 --num-threads 8  -num-iterations  8000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 10000 --num-threads 16 -num-iterations  8000 --output-file "$outfile"
+}
+
+bench-exe ./build/benchmark-soa-sequential "$s_soa"
+bench-exe ./build/benchmark-soa-parallel "$p_soa"
+bench-exe ./build/benchmark-aos-sequential "$s_aos"
+bench-exe ./build/benchmark-aos-parallel "$p_aos"

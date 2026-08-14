@@ -1,0 +1,94 @@
+#+begin_quote
+notes for the report
+#+end_quote
+
+* introuction
+this report is about
+we will
+- discuss the boids algorithm, its parallelism properties, and some strategies we may
+- see how we implemented the boid algorithm, the libraries&Co. used to parallelize (and visualize) its execution
+- see the benchmarks we implmented, how we implemented them, and their results
+
+* boids
+- potentials
+  - centering
+  - speed match
+  - repulsion
+- combination of potentials
+
+the original paper adds....  
+
+parallel aspects of it are the...
+
+...
+in the original paper this is done by ... and using it to control the boid through a dynamic model
+we shall, for the sake of simplicity apply the... directly to the boid's speed vector instead of...
+
+there are may ways to sum the various potentials of...
+we shall for... have a linear combination of
+
+* Implementation
+** Pseudocode
+What follows is the pseudocode for the AoS and SoA implementations of boids within the context of this repo and report
+The pseudocode here is written in "pseudo python", which has been impromptu extended by the author to be of greater conveineice for illustrating the problem at hand, we shall assume, for instance, that adding and subtracting tuples works the same way as adding and subtracting numpy arrays.
+
+The pseudocode that followins has also been simplified wrt to the implementation you may find in the C code of this repo by removing such details as speed limits and window centering forces which the author has added to make the output of the executable boids more visually appealing.
+
+And, as a final note, boid algorithm has its fair share of what we may, by stretching the meaning of the word a bit, call "hyperparameters", for the sake of brevity we shall therefore assume both of the following snippets to be preceded by a parameter setting block as such
+#+begin_src python
+  num_boids = SOME_USER_PROVIDED_PARAMETER
+  min_neigh_dist = SOME_USER_PROVIDED_PARAMETER
+  min_repel_dist = SOME_USER_PROVIDED_PARAMETER
+  speed_match_factor = SOME_USER_PROVIDED_PARAMETER
+  centering_factor = SOME_USER_PROVIDED_PARAMETER
+  repulsion_factor = SOME_USER_PROVIDED_PARAMETER
+#+end_src
+
+*** AoS Pseudocode
+That said, here is a the pseudocode for the Array of Structs version of the boids algorithm, as implemented in this repo. 
+#+begin_src python
+  class Boid:
+      def __init__(self, x, y, dx, dy):
+          self.x = x
+          self.y = y
+          self.dx = dx
+          self.dy = dy
+
+  def update_boid(boid:Boid, boids:List[Boids]):
+      neighbours = [i in boids if distance(boid, i) < min_neigh_dist]
+      repelled = [i in boids if distance(boid, i) < min_repel_dist]
+
+      centering_force = avg([(n.x, n.y) for n in neighbours])\
+          - (boid.x, boid.y)\
+          ,* centering_factor
+
+      speed_match_force = - avg([(n.dx, n.dy) for n in neighbours])\
+          - (boid.dx, boid.dy)\
+          ,* speed_match_factor
+
+      repelling_force = sum([(boid.x, boid.y) - (r.x, r.y) for r in repelled])\
+          ,* repulsion_factor
+
+      total_force = centering_force + speed_match_force + repelling_force
+
+      return Boid(b.x + b.dx, # update position
+                  b.y + b.dy,
+                  b.dx + total_force.x # update velocity
+                  b.dy + total_force.y)
+
+  def main():
+      boids = [make_random_boid() for _ in range(num_boids)]
+      for i in range(iterations):
+          boids = [update_boid(boid, boids) for boid in boids]
+#+end_src
+
+*** SoA Pseudocode
+#+begin_src python
+  class Boids:
+      def __init__(self, xs, ys, dxs, dys):
+          self.xs = xs
+          self.ys = ys
+          self.dxs = dxs
+          self.dys = dys
+#+end_src
+

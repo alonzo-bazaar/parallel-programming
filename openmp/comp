@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+
+fatal() {
+	echo "$1" > /dev/stderr
+	exit 1
+}
+
+get_raylib_dir() {
+	if [[ "$(uname)" = "Linux" ]]; then
+		echo './raylib-5.5_linux_amd64'
+	elif [[ "$(uname)" = "Darwin" ]]; then
+		echo './raylib-5.5_macos'
+	else
+		fatal "unrecognized uname $(uname)! this script doesn't work with $(uname)!"
+	fi
+}
+
+get_omp_build_flags() {
+	if [[ "$(uname)" = "Linux" ]]; then
+		echo '-fopenmp -lomp'
+	elif [[ "$(uname)" = "Darwin" ]]; then
+		echo '-fopenmp -lomp'
+	else
+		fatal "unrecognized uname $(uname)! cannot generate openmp flags for it!"
+	fi
+}
+
+raylib_dir="$(get_raylib_dir)"
+[[ -d "$raylib_dir" ]] ||\
+	fatal "cannot find raylib dir $raylib_dir! raylib must be present in project directory, you can run ./download_raylib to dowload it"
+
+# sequential compilation targets use the same files as parallel targets,
+# they're just compiled with different flags that don't include openmp
+# meaning they will behave sequentially
+# (source was made in such a way that removing omp pragmas does not alter behaviour)
+# graphical targets all use parallel update logic for convenience
+
+# flags expanded through word splitting
+# this works because no flag has a space in it, were they to contain spaces
+# the flag itself would be split by spaces into multiple flags
+# and it would all get painful
+
+common_build_flags="-I./include -Wall -Wextra -Wpedantic -Wrestrict -lm -lomp"
+omp_build_flags="$(get_omp_build_flags)"
+raylib_build_flags="-I$raylib_dir/include -L$raylib_dir/lib/ -lraylib"
+
+sequential_benchmark_flags="-DBOID_BENCHMARK $common_build_flags"
+parallel_benchmark_flags="-DBOID_BENCHMARK $common_build_flags $omp_build_flags"
+
+sequential_graphics_flags="-DBOID_GRAPHICS $common_build_flags $raylib_build_flags"
+parallel_graphics_flags="-DBOID_GRAPHICS $common_build_flags $omp_build_flags $raylib_build_flags"
+
+common_files="./src/config.c ./src/argparse.c ./src/args.c ./src/common.c"
+soa_files="$common_files ./src/soa.c"
+aos_files="$common_files ./src/aos.c"
+
+graphics_files="./src/graphics-common.c"
+benchmark_files="./src/benchmark-common.c"
+
+setup() {
+	local message="$1"
+
+	[[ -d './build' ]] || mkdir './build'
+	echo "$message"
+	echo 'output will be found in ./build directory'
+}
+
+# graphical builds
+build_graphics() {
+	setup "doing graphics builds"
+
+	echo "sequential soa"
+	cc -o ./build/graphics-soa-sequential $soa_files src/graphics-soa.c $graphics_files $sequential_graphics_flags
+	echo "sequential aos"
+	cc -o ./build/graphics-aos-sequential $aos_files src/graphics-aos.c $graphics_files $sequential_graphics_flags
+
+	echo "parallel soa"
+	cc -o ./build/graphics-soa-parallel $soa_files src/graphics-soa.c $graphics_files $parallel_graphics_flags
+	echo "parallel aos"
+	cc -o ./build/graphics-aos-parallel $aos_files src/graphics-aos.c $graphics_files $parallel_graphics_flags
+}
+
+
+# benchmark builds
+build_benchmark() {
+	setup "doing benchmark builds"
+
+	echo "parallel soa"
+	cc -o ./build/benchmark-soa-parallel $soa_files $benchmark_files src/benchmark-soa.c $parallel_benchmark_flags 
+	echo "sequential soa"
+	cc -o ./build/benchmark-soa-sequential $soa_files $benchmark_files src/benchmark-soa.c $sequential_benchmark_flags
+}
+
+main() {
+	case "$1" in
+		'benchmark')
+			build_benchmark
+			;;
+		'graphics')
+			build_graphics
+			;;
+		'all')
+			build_benchmark
+			build_graphics
+			;;
+		*)
+			echo "I don't know what $1 means" >&2
+			exit 1
+			;;
+	esac
+}
+
+main "$@"

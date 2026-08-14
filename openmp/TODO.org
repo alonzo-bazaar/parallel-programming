@@ -1,0 +1,56 @@
+* big ones
+- [X] make a sequential version of the code as a starting point ::
+  - [X] steal ben eater code
+  - [X] should fix the part where partially updated states are read during update
+    that is, make the read dx/dy and written dx/dy not overlap within the same simulation tick
+    they are usually separate, but the match velocity step reads dx/dy values that have been updated already
+- [X] make parallel array of structs version ::
+  - [X] refactor to put all boid update logic in a parallelizeable loop
+  - [X] ~pragma omp~ pray to god
+- [X] make parallel struct of arrays version ::
+- [ ] fix the random number generation to make simulation reproducible ::
+- [ ] have both a visualization and a benchmark version of the code ::
+  that is, create a ~common.h~, ~common.c~ for the boid logic
+  then add a ~visual_main.c~ and a ~benchmark_main.c~ to either run visualization, or run benchmarking
+  - [ ] create a common and a main for both soa and aos
+    (the logic between the two is too different to have a common ~common.h~ for the two of them that isn't basic utils)
+- [X] have a config file somewhere ::
+  create either a json, csv, whatever, to allow for quick fiddling with simulation parameters (especially the number of boids)
+  so that we may test simulation performance for various possible starting positions
+  without having to rebuild it everytime
+  
+  (fixed by adding cli args instead of a config file)
+
+** compilation  
+- [ ] see if it compiles on a mac, having a random bash script call ~cc~ to compile against a freshly unzipped raylib tarball is not necessarily the most portable compilation strategy out there
+  if all else fails, docker
+
+** benchmarking
+- [ ] create benchmark compilation targets for both sequential and parallel version
+  cli args for benchmark version should contain
+  - warmup iterations
+  - iterations
+  - output file
+  output file will likely be a csv,
+
+csv will probably be pandas-y to aid in later analysis and for the report, so it will have a header and all,
+should lazy init the header, benchmark should create csv with header if it doesn't exist, and otherwise just append its trial data to the csv.
+should probably also dump some omp environment variables to the header, most importantly the omp number of threads used,
+we have ~omp_get_num_threads()~ so shouldn't need to handle lovecraft's dearest ~getenv~ 
+
+** code quality
+- [ ] find a less brutal way to handle buffer swap in soa version
+- [ ] (soa) make update function less of a monolith
+- [ ] (aos) make update function less of a monolith
+- [ ] move global configuration variables in a simulation config struct
+  - [ ] should probably create ~argparse_get_int~ ~argparse_get_float~ ~argparse_get_string~ functions to make that a bit less painful
+
+** documentation
+- [ ] create a readme
+- [ ] start writing the report
+
+* small ones
+- [X] make boid simulation area change as window size changes 
+- [ ] allow argparse to accept flags whose sole purpose is existing and don't need to be bound to a value
+  such as ~--help~, ~--quiet~, ~--verbose~, et al.
+  
