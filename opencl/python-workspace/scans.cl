@@ -9,29 +9,23 @@ __kernel void ungodly(__global int* data, uint data_size) {
     }
 }
 
-// the "active" think suggested by clanker
-// thank you clanker, I suppose
-// cause of bug I had:
-//     all kernels in a work group must execute the barrier so if I have an early
-//     in one of the work elemenents and not in another then oopsie daisy, the
-//     barrier is never satisified and the kernel hangs and you go shit yourself
-//     and die
 __kernel void kogge_stone_block_scan(__global uint* global_data,
                                      const uint global_data_size,
                                      __local uint* local_data,
                                      const uint local_data_size) {
+    // const uint gi = get_local_id(0) + (get_group_id(0) * get_local_size(0));
     const uint gi = get_global_id(0);
     const uint li = get_local_id(0);
-    const bool active = gi < global_data_size;
+    const bool active = (gi < global_data_size);
 
-    if(active) local_data[li] = global_data[gi];
-    
-    barrier(CLK_LOCAL_MEM_FENCE|CLK_GLOBAL_MEM_FENCE);
+    // populate chunk we're gonna scan over
+    local_data[li]=active?global_data[gi]:0;
+
     for(uint stride = 1; stride < local_data_size; stride*=2) {
-        if(active && li >= stride) local_data[li] += local_data[li-stride];
-        barrier(CLK_LOCAL_MEM_FENCE|CLK_GLOBAL_MEM_FENCE);
+    	barrier(CLK_LOCAL_MEM_FENCE);
+        if(active && (li >= stride)) local_data[li] += local_data[li-stride];
     }
-    barrier(CLK_LOCAL_MEM_FENCE|CLK_GLOBAL_MEM_FENCE);
+    barrier(CLK_LOCAL_MEM_FENCE);
 
     if(active) global_data[gi] = local_data[li];
 }

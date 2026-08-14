@@ -2,21 +2,30 @@ import numpy as np
 import pyopencl as cl
 
 import time # for timing how different versions run
-import sys
+import sys  # to die on error failure
+
+import copy
+import functools # for functools.wraps() which we use in decorators
 
 # for quick visual compairison of differing histograms
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-# arithmetic and shit
+# opencl shit
+def compile_file(filename:str, ctx:cl.Context):
+    with open(filename, 'r') as file:
+        src = file.read().strip()
+        return cl.Program(ctx, src).build()
+
+# arithmetic shit
 def round_up_to_divide(a, b):
-    if a < b:
-        return b
     if (a%b) == 0:
         return a
+    if a < b:
+        return b
     return(a + b - (a%b))
 
-# timing utilities
+# timing shit
 class TimedBlock:
     def __init__(self,
                  section_name=None,
@@ -63,7 +72,7 @@ class TimedBlock:
         if self.append_time_into is not None:
             self.append_time_into.append(t)
 
-# plotting utilities
+# utilities for better logging/displaying of computation errors
 def diff(expected, actual):
     if expected.dtype in [np.int8, np.int16,np.int32, np.int64,
                           np.uint8, np.uint16, np.uint32, np.uint64]:
@@ -106,9 +115,16 @@ def error_on_diff(expected, actual,
             print("the difference is:")
             print(d)
             print("at indices:")
-            print(d.nonzero()[0])
+            idxs=d.nonzero()[0]
+            print(idxs)
             print("where it is:")
-            print(d[d.nonzero()[0]])
+            print(d[idxs])
+            if log_expected:
+                print("expected values at fucky indices:")
+                print(expected[idxs])
+            if log_actual:
+                print("actual values at fucky indices:")
+                print(actual[idxs])
         if plot_diff:
             print("plotting...")
             plot_compare_histograms(expected, actual)
@@ -117,7 +133,45 @@ def error_on_diff(expected, actual,
         return True
     return False
 
-def compile_file(filename:str, ctx:cl.Context):
-    with open(filename, 'r') as file:
-        src = file.read().strip()
-        return cl.Program(ctx, src).build()
+# buncha global state to wrap around `error_on_diff` calls
+curr_kernel_test_name=None
+curr_kernel_compare_kwargs = {
+    'log_expected' :True,
+    'log_actual'   :True,
+    'log_diff'     :True,
+    #'plot_diff'    :True,
+    'die_on_error' :True,
+}
+
+# decorators to manage the global state in question
+# https://realpython.com/primer-on-python-decorators/#finding-yourself
+# https://realpython.com/primer-on-python-decorators/#defining-decorators-with-arguments
+def kernel_test(name:str, **kt_kwargs):
+    def kernel_test_decorator(fn):
+        @functools.wraps(fn)
+        def wrapped_kernel_test(*wkt_args, **wkt_kwargs):
+            global curr_kernel_test_name, curr_kernel_compare_kwargs
+
+            # backup old global settings
+            old_kernel_test_name = copy.copy(curr_kernel_test_name)
+            old_kernel_compare_kwargs = copy.copy(curr_kernel_compare_kwargs)
+
+            # update global settings to reflect configuration parameters
+            curr_kernel_test_name = name
+            for k in kt_kwargs.keys():
+                curr_kernel_compare_kwargs[k] = kt_kwargs[k]
+
+            # call wrapped function in this updated global environment
+            res = fn(*wkt_args, **wkt_kwargs)
+
+            # restore old global state
+            curr_kernel_test_name = old_kernel_test_name
+            curr_kernel_compare_kwargs = old_kernel_compare_kwargs
+
+            return res
+        return wrapped_kernel_test
+    return kernel_test_decorator
+
+def compare(expected:np.ndarray, actual:np.ndarray):
+    error_on_diff(expected, actual, test_name=curr_kernel_test_name,
+                  **curr_kernel_compare_kwargs)

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import numpy as np
 import pyopencl as cl
-mf = cl.mem_flags
 
 from utils import TimedBlock, error_on_diff, compile_file, round_up_to_divide
 import os, sys, copy, functools
@@ -65,11 +64,15 @@ def compare(expected:np.ndarray, actual:np.ndarray):
 
 def np_cl_ones(length:int):
     global queue, ctx
-    data_np=np.ones(length, dtype=np.uint32)
-    data_dev = cl.Buffer(ctx, 0, data_np.nbytes)
-    cl.enqueue_copy(queue, data_dev ,data_np)
+    d_np=np.ones(length, dtype=np.uint32)
+
+    # https://documen.tician.de/pyopencl/runtime_const.html#pyopencl.mem_flags
+    mf = cl.mem_flags
+    d_cl = cl.buffer(ctx, mf.read_write, d_np.nbytes)
+
+    cl.enqueue_copy(queue, d_cl ,d_np)
     queue.finish()
-    return data_np, data_dev
+    return d_np, d_cl
 
 def np_cl_ones_like(baseline:np.ndarray):
     return np_cl_ones(baseline.shape[0])
@@ -101,7 +104,7 @@ def test_ungodly(baseline:np.ndarray):
 # - uno per fare lo di tutti i primi elementi dei vari blocchi
 # - e uno per farealla fine che a ogni blocco somma l'inizio dello scannato
 def progressive_kogge_stone(d_np:np.ndarray, d_cl:cl.Buffer):
-    local_work_size = 50
+    local_work_size = 256
     global_work_size = d_np.shape[0]
     global_work_size = round_up_to_divide(global_work_size, local_work_size)
 
@@ -112,12 +115,19 @@ def progressive_kogge_stone(d_np:np.ndarray, d_cl:cl.Buffer):
     local_work_shape = (local_work_size,)
 
     # first step in a progressive scan, do a scan of all chunks
-    global_data_size = np.uint32(d_np.shape[0])
+    # we have no coarsening, so work size == data size
+    # (modulo having some excess work items for alignment and shit)
+    global_data_size = np.uint32(d_np.shape[0]) # bruh
+    local_data_size = np.uint32(local_work_size)
     kogge_stone_block_scan(queue, global_work_shape, local_work_shape,
                            d_cl, global_data_size,
-                           cl.LocalMemory(local_work_size * 4),
-                           local_work_size)
+                           cl.LocalMemory(local_data_size * 4), # LocalMemory c'tor takes
+                                                                # #bytes, here it's
+                                                                # number of elements * 4
+                                                                # 'cause uint32=4 bytes
+                           local_data_size)
     queue.finish()
+    return
 
     # then do a scan considering only the last elements of every chunk 
     # (clojure threading macros be like)
@@ -131,13 +141,12 @@ def progressive_kogge_stone(d_np:np.ndarray, d_cl:cl.Buffer):
     number_of_chunks = np.uint32(number_of_chunks)
     kogge_stone_last_elem_scan(queue,
                                (number_of_chunks,), (number_of_chunks,),
-                               d_cl,         # global data
-                               global_data_size, # global data size
+                               d_cl,                                 # global data
+                               global_data_size,
                                cl.LocalMemory(number_of_chunks * 4), # local data
                                number_of_chunks,                     # local data size
                                chunk_size)                           # chunk size
     queue.finish()
-    return
 
     kogge_stone_filling_pass(queue, global_work_shape, local_work_shape,
                              d_cl,
@@ -158,13 +167,19 @@ def test_progressive(baseline:np.ndarray):
     return d_np
 
 def main():
-    data_length = 8123
+    data_length = 8000
     # baseline = compute_baseline(data_length)
     baseline = np.ones(data_length)
     # test_ungodly(baseline)
     tp = test_progressive(baseline)
-
-    print(test_progressive(baseline))
+    tpr = np.asarray([tp[i-1]for i in range(len(tp))])
+    diff = tp - tpr
+    ids = np.where(diff != 1)[0]
+    print(ids)
+    print(ids%50)
+    print(diff[ids])
+    # print(tp[ids])
+    # print(tp[ids-1])
 
 if __name__=='__main__':
     main()
