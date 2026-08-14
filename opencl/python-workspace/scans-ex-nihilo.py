@@ -122,8 +122,8 @@ for whole_size, group_size in test_sizes:
                   expected_output=baseline_scan,
                   local_work_size=group_size)
 
-    # data = np.random.randint(1, 1000, whole_size, dtype=np.uint32)
-    # baseline_scan = compute_baseline(data)
-    # test_ks_whole(data,
-    #               expected_output=baseline_scan,
-    #               local_work_size=group_size)
+    data = np.random.randint(1, 1000, whole_size, dtype=np.uint32)
+    baseline_scan = compute_baseline(data)
+    test_ks_whole(data,
+                  expected_output=baseline_scan,
+                  local_work_size=group_size)
