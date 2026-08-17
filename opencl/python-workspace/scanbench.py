@@ -2,8 +2,9 @@
 import numpy as np
 import pyopencl as cl
 
-from utils import TimedBlock, error_on_diff, compile_file, round_up_to_divide
-import os, sys, copy, functools
+from utils import (TimedBlock, error_on_diff, compile_file, round_up_to_divide,
+                   kernel_test, get_curr_kernel_test_name, compare)
+import os, sys
 
 # global settings and variables
 # settings
@@ -15,172 +16,114 @@ ctx = cl.create_some_context(interactive=False)
 queue = cl.CommandQueue(ctx)
 
 # compile kernels only once
-scans_prog = compile_file('scans.cl', ctx)
-ungodly = scans_prog.ungodly
-kogge_stone_block_scan = scans_prog.kogge_stone_block_scan
-kogge_stone_last_elem_scan = scans_prog.kogge_stone_last_elem_scan
-kogge_stone_filling_pass = scans_prog.kogge_stone_filling_pass
+scans_prog = compile_file('scans-ex-nihilo.cl', ctx)
+ks_block_scan     = scans_prog.ks_block_scan
+ks_last_elt_scan  = scans_prog.ks_last_elt_scan
+ks_filling_pass   = scans_prog.ks_filling_pass
 
-curr_kernel_test_name=None
-curr_kernel_compare_kwargs = {
-    'log_expected' :True,
-    'log_actual'   :True,
-    'log_diff'     :True,
-    #'plot_diff'    :True,
-    'die_on_error' :True,
-}
-
-# https://realpython.com/primer-on-python-decorators/#finding-yourself
-# https://realpython.com/primer-on-python-decorators/#defining-decorators-with-arguments
-def kernel_test(name:str, **kt_kwargs):
-    def kernel_test_decorator(fn):
-        @functools.wraps(fn)
-        def wrapped_kernel_test(*wkt_args, **wkt_kwargs):
-            global curr_kernel_test_name, curr_kernel_compare_kwargs
-
-            # backup old global settings
-            old_kernel_test_name = copy.copy(curr_kernel_test_name)
-            old_kernel_compare_kwargs = copy.copy(curr_kernel_compare_kwargs)
-
-            # update global settings to reflect configuration parameters
-            curr_kernel_test_name = name
-            for k in kt_kwargs.keys():
-                curr_kernel_compare_kwargs[k] = kt_kwargs[k]
-
-            # call wrapped function in this updated global environment
-            res = fn(*wkt_args, **wkt_kwargs)
-
-            # restore old global state
-            curr_kernel_test_name = old_kernel_test_name
-            curr_kernel_compare_kwargs = old_kernel_compare_kwargs
-
-            return res
-        return wrapped_kernel_test
-    return kernel_test_decorator
-
-def compare(expected:np.ndarray, actual:np.ndarray):
-    error_on_diff(expected, actual, test_name=curr_kernel_test_name,
-                  **curr_kernel_compare_kwargs)
-
-def np_cl_ones(length:int):
-    global queue, ctx
-    d_np=np.ones(length, dtype=np.uint32)
-
-    # https://documen.tician.de/pyopencl/runtime_const.html#pyopencl.mem_flags
+# https://documen.tician.de/pyopencl/runtime_const.html#pyopencl.mem_flags
+def copy_to_cl(d_np:np.ndarray):
+    global queue
     mf = cl.mem_flags
-    d_cl = cl.buffer(ctx, mf.read_write, d_np.nbytes)
-
+    d_cl = cl.Buffer(ctx, mf.READ_WRITE, d_np.nbytes)
     cl.enqueue_copy(queue, d_cl ,d_np)
     queue.finish()
-    return d_np, d_cl
-
-def np_cl_ones_like(baseline:np.ndarray):
-    return np_cl_ones(baseline.shape[0])
+    return d_cl
 
 @kernel_test(name="baseline", die_on_error=False)
-def compute_baseline(length:int):
-    d_np = np.ones(length)
+def compute_baseline(data:np.ndarray):
     with TimedBlock("baseline"):
-        res = np.cumsum(d_np) # welcome to the cumsum
-    return res
+        return np.cumsum(data) # welcome to the cumsum
 
-@kernel_test(name="ungodly", die_on_error=False)
-def test_ungodly(baseline:np.ndarray):
-    d_np, d_cl = np_cl_ones_like(baseline)
-    with TimedBlock("ungodly"):
-        ungodly(queue,
-                d_np.shape,
-                None,
-                d_cl, np.uint32(d_np.shape[0]))
-        queue.finish()
-    cl.enqueue_copy(queue, d_np ,d_cl)
-    queue.finish()
-    compare(d_np, baseline)
-    return d_np
+# generic function in which to plug the elements of a  progressive scan which
+# satisfy given conditions
+# since this is mostly wrapper code around kernel calls and I can't be fucked to
+# rewrite this for every progressive scan I test
+def test_progressive_scan_whole(d_np, expected_output,
+                                block_scan, last_elt_scan, filling_pass,
+                                local_work_size=256):
+    d_cl = copy_to_cl(d_np)
+    data_size = d_np.shape[0]
+    global_work_size = round_up_to_divide(data_size, local_work_size)
 
-# opencl non ho sto grandissima coordinamento tra kernel
-# quindi qua famo che ne lancio 3 in questo ordine (progressive scan)
-# - uno per fare lo scan di tutti i blocchi
-# - uno per fare lo di tutti i primi elementi dei vari blocchi
-# - e uno per farealla fine che a ogni blocco somma l'inizio dello scannato
-def progressive_kogge_stone(d_np:np.ndarray, d_cl:cl.Buffer):
-    local_work_size = 256
-    global_work_size = d_np.shape[0]
-    global_work_size = round_up_to_divide(global_work_size, local_work_size)
-
-    local_work_size = np.uint32(local_work_size)
+    data_size        = np.uint32(data_size)
+    local_work_size  = np.uint32(local_work_size)
     global_work_size = np.uint32(global_work_size)
 
-    global_work_shape = (global_work_size,)
-    local_work_shape = (local_work_size,)
+    # data will be divided in chunks with size equal to local_work_size
+    # and there will therefore be a number of chunks equal to
+    number_of_chunks  = np.uint32(np.ceil(data_size / local_work_size))
+    single_chunk_size = np.uint32(local_work_size)
 
-    # first step in a progressive scan, do a scan of all chunks
-    # we have no coarsening, so work size == data size
-    # (modulo having some excess work items for alignment and shit)
-    global_data_size = np.uint32(d_np.shape[0]) # bruh
-    local_data_size = np.uint32(local_work_size)
-    kogge_stone_block_scan(queue, global_work_shape, local_work_shape,
-                           d_cl, global_data_size,
-                           cl.LocalMemory(local_data_size * 4), # LocalMemory c'tor takes
-                                                                # #bytes, here it's
-                                                                # number of elements * 4
-                                                                # 'cause uint32=4 bytes
-                           local_data_size)
+    kernel_under_test_name = get_curr_kernel_test_name()
+    with TimedBlock("progressive scan" + (f": {kernel_under_test_name}"
+                                          if kernel_under_test_name is not None
+                                          else "")):
+        block_scan(queue, (global_work_size,), (local_work_size,),
+                   d_cl, data_size,
+                   cl.LocalMemory(local_work_size * 4), local_work_size)
+        # queue.finish()
+
+        last_elt_scan(queue,
+                      (np.uint32(round_up_to_divide(number_of_chunks, 32)),),
+                      (np.uint32(round_up_to_divide(number_of_chunks, 32)),),
+                      d_cl, data_size,
+                      cl.LocalMemory(number_of_chunks * 4),
+                      number_of_chunks,
+                      single_chunk_size)
+        # queue.finish()
+
+        filling_pass(queue, (global_work_size,), (local_work_size,),
+                     d_cl, data_size,
+                     single_chunk_size)
+        queue.finish()
+
+    cl.enqueue_copy(queue, d_np, d_cl)
     queue.finish()
-    return
-
-    # then do a scan considering only the last elements of every chunk 
-    # (clojure threading macros be like)
-    chunk_size = local_work_size # we don't do any coarsening, so the chunks are
-                                 # the same size as the work group, and every 
-                                 # work item in a work group handles one
-                                 # element of the input array
-
-    number_of_chunks = np.ceil(global_work_size/local_work_size)
-    number_of_chunks = round_up_to_divide(number_of_chunks, 32)
-    number_of_chunks = np.uint32(number_of_chunks)
-    kogge_stone_last_elem_scan(queue,
-                               (number_of_chunks,), (number_of_chunks,),
-                               d_cl,                                 # global data
-                               global_data_size,
-                               cl.LocalMemory(number_of_chunks * 4), # local data
-                               number_of_chunks,                     # local data size
-                               chunk_size)                           # chunk size
-    queue.finish()
-
-    kogge_stone_filling_pass(queue, global_work_shape, local_work_shape,
-                             d_cl,
-                             # again, we don't do any coarsening
-                             # so data size is equal to work size
-                             global_work_size,
-                             chunk_size)
-    queue.finish()
-
-@kernel_test(name="progressive kogge stone", die_on_error=False)
-def test_progressive(baseline:np.ndarray):
-    d_np, d_cl = np_cl_ones_like(baseline)
-    with TimedBlock("kogge stone"):
-        progressive_kogge_stone(d_np, d_cl)
-    cl.enqueue_copy(queue, d_np ,d_cl)
-    queue.finish()
-    # compare(baseline, d_np)
+    compare(expected_output, d_np)
     return d_np
 
-def main():
-    data_length = 8000
-    # baseline = compute_baseline(data_length)
-    baseline = np.ones(data_length)
-    # test_ungodly(baseline)
-    tp = test_progressive(baseline)
-    tpr = np.asarray([tp[i-1]for i in range(len(tp))])
-    diff = tp - tpr
-    ids = np.where(diff != 1)[0]
-    print(ids)
-    print(ids%50)
-    print(diff[ids])
-    # print(tp[ids])
-    # print(tp[ids-1])
+@kernel_test(name="heirarchical kogge stone", die_on_error=True)
+def test_ks_whole(input_data,
+                  expected_output,
+                  local_work_size=256):
+    test_progressive_scan_whole(input_data, expected_output,
+                                local_work_size=local_work_size,
 
-if __name__=='__main__':
-    main()
+                                block_scan=ks_block_scan,
+                                last_elt_scan=ks_last_elt_scan,
+                                filling_pass=ks_filling_pass)
 
+
+np.random.set_state(('MT19937', np.ones(624), 42))
+test_sizes = [(99,     99), (99,    100), (99,    101),
+              (100,    10), (100,    99), (100,   100), (100,   101),
+              (101,    99), (101,   100), (101,   101),
+              
+              (254,   254), (255,   254), (256,   254), (257,   254),
+              (254,   255), (255,   255), (256,   255), (257,   255),
+              (254,   256), (255,   256), (256,   256), (257,   256),
+
+              (1023,  254), (1024,  254), (1025,  254),
+              (1023,  255), (1024,  255), (1025,  255),
+              (1023,  256), (1024,  256), (1025,  256),
+
+              (1000,  256), (10000, 256), (1000,  255), (10000, 255),
+              (123,   123), (321,   123), (4321,  123), (54321, 231),
+
+              ((2**16)-1, 256)]
+
+for whole_size, group_size in test_sizes:
+    print(f'{whole_size}, {group_size}')
+
+    data = np.ones(whole_size, dtype=np.uint32)
+    baseline_scan = compute_baseline(data)
+    test_ks_whole(data,
+                  expected_output=baseline_scan,
+                  local_work_size=group_size)
+
+    data = np.random.randint(1, 1000, whole_size, dtype=np.uint32)
+    baseline_scan = compute_baseline(data)
+    test_ks_whole(data,
+                  expected_output=baseline_scan,
+                  local_work_size=group_size)

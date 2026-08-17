@@ -1,70 +1,99 @@
-// -*- mode:c -*-
+__kernel void ks_block_scan(__global uint* global_data, const uint global_data_size,
+                            __local   uint* local_data, const uint local_data_size) {
+    const uint global_idx = get_global_id(0);
+    const uint local_idx  = get_local_id(0);
+    const bool is_active  = (global_idx < global_data_size);
 
-// just one thread, quite horrible, but a baseline
-__kernel void ungodly(__global int* data, uint data_size) {
-    if(get_global_id(0)==0) {
-        for(uint i = 1; i<data_size; ++i) {
-            data[i] += data[i-1];
-        }
-    }
-}
-
-__kernel void kogge_stone_block_scan(__global uint* global_data,
-                                     const uint global_data_size,
-                                     __local uint* local_data,
-                                     const uint local_data_size) {
-    // const uint gi = get_local_id(0) + (get_group_id(0) * get_local_size(0));
-    const uint gi = get_global_id(0);
-    const uint li = get_local_id(0);
-    const bool active = (gi < global_data_size);
-
-    // populate chunk we're gonna scan over
-    local_data[li]=active?global_data[gi]:0;
-
-    for(uint stride = 1; stride < local_data_size; stride*=2) {
-    	barrier(CLK_LOCAL_MEM_FENCE);
-        if(active && (li >= stride)) local_data[li] += local_data[li-stride];
-    }
+    local_data[local_idx]=is_active?global_data[global_idx]:0;
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    if(active) global_data[gi] = local_data[li];
-}
-
-// ci si aspetta che venga lanciato con un solo work group questo
-// (e che quindi get_global_id(0) == get_local_id(0))
-__kernel void kogge_stone_last_elem_scan(__global uint* global_data,
-                                         const uint global_data_size,
-                                         __local uint* local_data,
-                                         const uint local_data_size,
-                                         const uint chunk_size) {
-    // index into local data (index of chunk we're working on)
-    const uint li = get_local_id(0);
-    const uint chunk_end = (li+1)*chunk_size-1;
-    const bool active = chunk_end < global_data_size;
-
-    if(active) local_data[li] = global_data[chunk_end];
-
-    // stessa logica di sopra
+    uint tmp;
     for(uint stride = 1; stride < local_data_size; stride*=2) {
+        if (local_idx >= stride) tmp = local_data[local_idx - stride];
         barrier(CLK_LOCAL_MEM_FENCE);
-        if(active && li >= stride) local_data[li] += local_data[li-stride];
+        if (local_idx >= stride) local_data[local_idx] += tmp;
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        // you can test for yourself that translitterating the textbook to opencl
+        // doesn't work, comment the 4 lines above and uncomment these two below
+        // it will break
+        // if (local_idx >= stride)
+        //     local_data[local_idx] += local_data[local_idx - stride];
     }
+
+    if(is_active) global_data[global_idx] = local_data[local_idx];
+}
+
+// expected to be launched with only one work group
+// this kernel, together with the above and below kernels, provides *one* level
+// of heirarchical scan
+__kernel void ks_last_elt_scan(__global uint* global_data,
+                               const uint global_data_size,
+
+                               __local uint* chunk_sum_scan,
+                               const uint number_of_chunks,
+                               const uint single_chunk_size) {
+    const uint local_idx = get_local_id(0);
+
+    // given how last step was plus scanning all chunks individually, here  the
+    // last element in any given chunk is the sum of all elements in that chunk
+    // so let's get the index where that sum is housed in the `global_data` array
+    const uint chunk_sum_global_idx =
+        (single_chunk_size * local_idx) +
+        (single_chunk_size - 1);
+
+    // is the above index/the index this work item is responsible for valid?
+    // that is, is the index in bounds?
+    // that is, should  this work item do shit or is it an excess work item
+    // spawned for alignment's sake?
+    const bool is_active = (chunk_sum_global_idx < global_data_size);
+
+    // and now, the same logic as above, with different names
+    chunk_sum_scan[local_idx]=is_active?global_data[chunk_sum_global_idx]:0;
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    if(active) global_data[chunk_end] = local_data[li];
+    uint tmp;
+    for(uint stride = 1; stride < number_of_chunks; stride*=2) {
+        if (local_idx >= stride) tmp = chunk_sum_scan[local_idx - stride];
+        barrier(CLK_LOCAL_MEM_FENCE);
+        if (local_idx >= stride) chunk_sum_scan[local_idx] += tmp;
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    if(is_active) global_data[chunk_sum_global_idx] = chunk_sum_scan[local_idx];
 }
 
-__kernel void kogge_stone_filling_pass(__global uint* data,
-                                       const uint data_size,
-                                       const uint chunk_size) {
-    const uint data_index = get_global_id(0);
-    const uint chunk_index = get_group_id(0);
-    const uint prev_chunk_end_index = chunk_index * chunk_size - 1;
-    const uint curr_chunk_end_index = (chunk_index + 1) * chunk_size - 1;
-    const uint prev_chunk_end = data[prev_chunk_end_index];
 
-    if((data_index < data_size) &&
-       (data_index != curr_chunk_end_index) &&
-       (chunk_index != 0))
-        data[data_index] += prev_chunk_end;
+__kernel void ks_filling_pass(__global uint* global_data,
+                               const uint global_data_size,
+                               const uint single_chunk_size) {
+    const uint global_idx = get_global_id(0);
+    uint prev_chunk_end_idx = global_idx - (global_idx % single_chunk_size);
+    prev_chunk_end_idx -= (prev_chunk_end_idx != 0);
+    const uint curr_chunk_end_idx = prev_chunk_end_idx + single_chunk_size;
+    const uint prev_chunk_end = global_data[prev_chunk_end_idx];
+    const bool is_active = (global_idx < global_data_size);
+
+    barrier(CLK_GLOBAL_MEM_FENCE);
+    if(is_active && prev_chunk_end_idx && (global_idx != curr_chunk_end_idx))
+        global_data[global_idx] += prev_chunk_end;
 }
+
+// below should probably go some #define'd bullshit to have the kernels above but
+// coarsened to have every thread to a prefixed bunch of work 
+// I want a generic, say
+// #define ks_cbs_def(n) __kernel void ks_coarse_block_scan_ ## n () { /* .. */ }
+// and then implement that for all desired thread coarsening options as
+// ks_cbs_def( 1) // for benchmarking purposes
+// ks_cbs_def( 2)
+// ks_cbs_def( 4)
+// ks_cbs_def( 8)
+// ks_cbs_def(16)
+// ks_cbs_def(32)
+// ks_cbs_def(64)
+
+// the above should most likely be done after I implement brent kung as well as kogge stone 
+// make definition macros both for coarsened kogge stone and  for coarsened brent kung
+
+// (maybe parameterize on op as well? tho that seems more like a codegen thing :/)
+// (should probably fuck around a bit with shsl to make it more useable for codegen)
