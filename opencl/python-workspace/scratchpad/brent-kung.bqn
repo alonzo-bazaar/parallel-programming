@@ -5,7 +5,7 @@
 # sorry
 
 # so brent kung goes like 
-# first pass (here arbitrairily called "converging step")
+# first pass (here arbitrairily called "converging")
 # iw := "indices where"
 # a[iw %2=1] += a[iw %2=0]
 # a[iw %4=3] += a[iw %4=1]
@@ -14,7 +14,7 @@
 # a[iw %(2⋆n)=(1-˜2⋆n)] += a[iw %(2⋆n)=(1-˜ 2⋆n-1)]
 # up until 2^n > ≠a
 
-# second pass (here arbitrairily called "distribution step")
+# second pass (here arbitrairily called "distribution")
 # assuming array of length 9, where the greatest while power of 2 below ≠a is 8
 # a[iw %8=7] +=˜ a[(iw %8=7) +4]
 # a[iw %4=3] +=˜ a[(iw %4=3) +2]
@@ -29,6 +29,8 @@
 # returns a but with a[si] += a[di]
 ASI ← {si‿di𝕊a : (si+○(⊏⟜a)di)⌾(di⊸⊏) a }
 
+# Brent kung convergint step
+# performs one step in brent kung's converging phase
 BKCS ← { s𝕊a: # s = stride, a = array
               # returns a but indices where (1-˜ 2⋆n)   = (2⋆n)|i 
               # are +='d with indices where (1-˜ 2⋆n-1) = (2⋆n)|i
@@ -45,20 +47,23 @@ BKCS ← { s𝕊a: # s = stride, a = array
 
 # NOTE: cbqn doesn't have tco
 # but... we don't need that much stack
-# and I find this way of writing it clearer
+# and I find this way of writing thigs clearer
 BKC ← {
     𝕊a  : 1𝕊a ;
     s𝕊a : s > ≠a ? a ;
     s𝕊a : s ≤ ≠a ? (s×2) 𝕊 s BKCS a
 }
 
-# brent kung distribution
+# brent kung distribution phase (see above, same shit)
+# brent kung distribution step
 BKDS ← { s𝕊a:
      ss ← 2×s
      di ← (≠a)⊸>⊸/ s + ((1-˜ss)=ss⊸|)⊸/ ↕≠a
      si ← di-s
      si‿di ASI a
 }
+
+# brent kung distribution
 BKD ← {
     𝕊a  : is ← 2÷˜⌊⌾(2⊸⋆⁼) ≠a # initial stride
           is𝕊a ;
@@ -66,15 +71,15 @@ BKD ← {
     s𝕊a : s > 0 ? (⌊s÷2) 𝕊 s BKDS a
 }
 
+# brent kung
 BK ← BKD BKC
 
-
-# some utils
+# some utils for fucking around with the above code
 nl ← ≍@+10                  # newline
 JL ← ∾´ ∾⟜nl¨               # join lines
 DH ← {•Out JL ⥊⟜'#'¨ 𝕩 ⋄ @} # display histogram
 
-# test shit ahead
+# testing our implementation of bk
 TST ← {(BK𝕩) ≡ (+`𝕩)}
 ! TST 0 ⥊ 0
 ! TST 10 ⥊ 0
