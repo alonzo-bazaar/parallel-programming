@@ -1,5 +1,7 @@
-__kernel void ks_block_scan(__global uint* global_data, const uint global_data_size,
-                            __local   uint* local_data, const uint local_data_size) {
+__kernel void ks_block_scan(__global uint* global_data,
+                            const uint global_data_size,
+                            __local   uint* local_data,
+                            const uint local_data_size) {
     const uint global_idx = get_global_id(0);
     const uint local_idx  = get_local_id(0);
     const bool is_active  = (global_idx < global_data_size);
@@ -63,10 +65,11 @@ __kernel void ks_last_elt_scan(__global uint* global_data,
     if(is_active) global_data[chunk_sum_global_idx] = chunk_sum_scan[local_idx];
 }
 
-
-__kernel void ks_filling_pass(__global uint* global_data,
-                               const uint global_data_size,
-                               const uint single_chunk_size) {
+// filling pass has no algorithm specific logic to it
+// we can use the same filling pass for all heirarchical scans we implement
+__kernel void filling_pass(__global uint* global_data,
+                           const uint global_data_size,
+                           const uint single_chunk_size) {
     const uint global_idx = get_global_id(0);
     uint prev_chunk_end_idx = global_idx - (global_idx % single_chunk_size);
     prev_chunk_end_idx -= (prev_chunk_end_idx != 0);
@@ -78,6 +81,8 @@ __kernel void ks_filling_pass(__global uint* global_data,
     if(is_active && prev_chunk_end_idx && (global_idx != curr_chunk_end_idx))
         global_data[global_idx] += prev_chunk_end;
 }
+
+
 
 // below should probably go some #define'd bullshit to have the kernels above but
 // coarsened to have every thread to a prefixed bunch of work 
@@ -97,3 +102,123 @@ __kernel void ks_filling_pass(__global uint* global_data,
 
 // (maybe parameterize on op as well? tho that seems more like a codegen thing :/)
 // (should probably fuck around a bit with shsl to make it more useable for codegen)
+
+uint largest_power_of_2_less_than(uint i) {
+    i |= (i>> 1);
+    i |= (i>> 2);
+    i |= (i>> 4);
+    i |= (i>> 8);
+    i |= (i>>16);
+    return i & ~(i>>1);
+}
+
+__kernel void bk_block_scan(__global uint* global_data,
+                            const uint global_data_size,
+                            __local   uint* local_data,
+                            const uint local_data_size) {
+    const uint global_idx = get_global_id(0);
+    const uint local_idx  = get_local_id(0);
+    const bool is_active  = (global_idx < global_data_size);
+    const uint section_size = largest_power_of_2_less_than(local_data_size);
+
+    local_data[local_idx]=is_active?global_data[global_idx]:0;
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    // can't have data[i] += data[j] since that's a race condition somehow
+    // so we do tmp = data[j]; barrier(); data[i] += tmp
+
+    for(uint stride = 1; stride < local_data_size; stride*=2) {
+        const uint curr_iteration_index =
+            (local_idx+1) * 2*stride - 1;
+        const bool is_active_on_iteration =
+            curr_iteration_index < local_data_size;
+
+        const uint tmp =
+            is_active_on_iteration
+            ?local_data[curr_iteration_index - stride]
+            :0;
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        // for some reason it needs this if even if adds 0 (noop) when
+        // curr_iteration_index >= local_data_size
+        // it randomly breaks without this and I don't got a damn clue as to why
+        // thanks clanker for finding this tho I still have no idea what
+        // caused it :/
+        if(is_active_on_iteration)
+            local_data[curr_iteration_index] += tmp;
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    // second pass, distribute partial sums
+    for(uint stride = section_size; stride; stride>>=1) {
+        const uint curr_iteration_index =
+            (local_idx+1) * (stride*2) - 1 + stride;
+        const bool is_active_on_iteration =
+            curr_iteration_index < local_data_size;
+
+        const uint tmp =
+            is_active_on_iteration
+            ?local_data[curr_iteration_index - stride]
+            :0;
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        if(is_active_on_iteration)
+            local_data[curr_iteration_index] += tmp;
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+
+    if(is_active) global_data[global_idx] = local_data[local_idx];
+}
+
+__kernel void bk_last_elt_scan(__global uint* global_data,
+                               const uint global_data_size,
+                               __local uint* chunk_sum_scan,
+                               const uint number_of_chunks,
+                               const uint single_chunk_size) {
+    const uint local_idx = get_local_id(0);
+    const uint chunk_sum_global_idx =
+        (single_chunk_size * local_idx) +
+        (single_chunk_size - 1);
+    const bool is_active = (chunk_sum_global_idx < global_data_size);
+    const uint section_size = largest_power_of_2_less_than(number_of_chunks);
+
+    chunk_sum_scan[local_idx]=is_active?global_data[chunk_sum_global_idx]:0;
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    for(uint stride = 1; stride < number_of_chunks; stride*=2) {
+        const uint curr_iteration_index =
+            (local_idx+1) * 2*stride - 1;
+        const bool is_active_on_iteration =
+            curr_iteration_index < number_of_chunks;
+
+        const uint tmp =
+            is_active_on_iteration
+            ?chunk_sum_scan[curr_iteration_index - stride]
+            :0;
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        if(is_active_on_iteration)
+            chunk_sum_scan[curr_iteration_index] += tmp;
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    for(uint stride = section_size; stride; stride>>=1) {
+        const uint curr_iteration_index =
+            (local_idx+1) * (stride*2) - 1 + stride;
+        const bool is_active_on_iteration =
+            curr_iteration_index < number_of_chunks;
+        
+        const uint tmp =
+            is_active_on_iteration
+            ?chunk_sum_scan[curr_iteration_index - stride]
+            :0;
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        if(is_active_on_iteration)
+            chunk_sum_scan[curr_iteration_index] += tmp;
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    if(is_active) global_data[chunk_sum_global_idx] = chunk_sum_scan[local_idx];
+}

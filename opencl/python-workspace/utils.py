@@ -31,12 +31,17 @@ class TimedBlock:
                  section_name=None,
                  # if not none rules over all logging args
                  log=None,
+                 # another way to phrase the `log` argument but more cli-ish
+                 quiet=None,
                  # logging args
                  log_start:bool=True, log_end:bool=True, trail_empty_line:bool=True,
                  # place where to put results after done
                  append_time_into=None):
         self.t = 0
         self.section_name = section_name
+
+        if (quiet is not None) and quiet:
+            log = False
 
         if log is not None:
             log_start=log
@@ -51,12 +56,12 @@ class TimedBlock:
         self.append_time_into=append_time_into
 
     def __enter__(self):
-        self.t = time.time()
         if self.log_start:
             if self.section_name is None:
                 print("Starting timed block...")
             else:
                 print(f"Starting timed block [{self.section_name}]...")
+        self.t = time.time()
 
     def __exit__(self, *ignoredargs):
         t = time.time()-self.t
@@ -97,9 +102,23 @@ def plot_compare_histograms(expected, actual):
 def error_on_diff(expected, actual,
                   test_name=None,
                   log_expected=False, log_actual=False, log_diff=False,
+                  log_any=None, log_all=None,
                   plot_diff=False,
                   die_on_error=False):
 
+    if (log_any is not None) and (log_all is not None):
+        raise ValueError("cannot specify both log_any and log_all")
+
+    if log_any is not None and (not log_any):
+        log_expected = False
+        log_actual = False
+        log_diff = False
+
+    if log_all is not None and log_all:
+        log_expected = True
+        log_actual = True
+        log_diff = True
+    
     if not np.all(expected == actual):
         tn_note=f" in test [{test_name}]" if test_name is not None else ""
         print(f"now you fucked up!{tn_note}")
