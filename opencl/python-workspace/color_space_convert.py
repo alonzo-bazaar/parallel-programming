@@ -16,9 +16,6 @@ import matplotlib.pyplot as plt
 ctx = cl.create_some_context(interactive=False)
 queue = cl.CommandQueue(ctx)
 
-hist_prog = compile_file('private_naive.cl', ctx)
-hist_ker = hist_prog.private_naive
-
 csc_prog = compile_file('color_space_conversions.cl', ctx)
 rgb2hsl_ker = csc_prog.rgb2hsl
 hsl2rgb_ker = csc_prog.hsl2rgb

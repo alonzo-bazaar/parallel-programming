@@ -4,7 +4,7 @@ import pyopencl as cl
 from PIL import Image
 from sys import argv
 
-from utils import TimedBlock, error_on_diff, compile_file
+from utils import TimedBlock, error_on_diff, compile_file, round_up_to_divide
 import os, sys
 os.environ['PYOPENCL_COMPILER_OUTPUT']='1'
 os.environ['PYOPENCL_CTX']='1'
@@ -13,50 +13,97 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 # opencl setup
-ctx = cl.create_some_context(interactive=False)
+ctx   = cl.create_some_context(interactive=False)
 queue = cl.CommandQueue(ctx)
 
 # kernels we're gonna use throughout the program execution
-csc_prog = compile_file('color_space_conversions.cl', ctx)
+csc_prog    = compile_file('color_space_conversions.cl', ctx)
 rgb2hsl_ker = csc_prog.rgb2hsl
 hsl2rgb_ker = csc_prog.hsl2rgb
 
-hist_prog = compile_file('private_naive.cl', ctx)
-lch_hist_ker = hist_prog.xyz_z_hist
+hists_prog    = compile_file('private_naive_histograms.cl', ctx)
+lch_hist_ker  = hists_prog.xyz_z_hist
 
-scan_prog = compile_file('scans.cl', ctx)
-plus_scan_ker = scan_prog.plus_scan_inplace
+scans_prog        = compile_file('scans.cl', ctx)
+ks_block_scan     = scans_prog.ks_block_scan
+ks_last_elt_scan  = scans_prog.ks_last_elt_scan
+filling_pass      = scans_prog.filling_pass
+
+eqlz_prog    = compile_file('equalization.cl', ctx)
+lch_eqlz_ker = eqlz_prog.xyz_z_eqlz
+
+# https://documen.tician.de/pyopencl/runtime_const.html#pyopencl.mem_flags
+def copy_to_cl(d_np:np.ndarray):
+    global queue
+    mf = cl.mem_flags
+    d_cl = cl.Buffer(ctx,
+                     mf.COPY_HOST_PTR | mf.HOST_READ_ONLY | mf.READ_WRITE,
+                     # d_np.nbytes,
+                     hostbuf = d_np)
+    return d_cl
 
 # define the entire data pipeline first then implement the functions that
 # that pipeline's gonna use
+def plus_scan_inplace(d_cl,
+                      data_size, local_work_size=256,
+                      block_scan    = ks_block_scan,    # if None is a noop
+                      last_elt_scan = ks_last_elt_scan, # if None is a noop
+                      filling_pass  = filling_pass):    # if None is a noop
+    global queue
+    global_work_size = round_up_to_divide(data_size, local_work_size)
+
+    data_size        = np.uint32(data_size)
+    local_work_size  = np.uint32(local_work_size)
+    global_work_size = np.uint32(global_work_size)
+
+    # data will be divided in chunks with size equal to local_work_size
+    # and there will therefore be a number of chunks equal to
+    number_of_chunks  = np.uint32(np.ceil(data_size / local_work_size))
+    single_chunk_size = np.uint32(local_work_size)
+
+    if block_scan is not None:
+        block_scan(queue, (global_work_size,), (local_work_size,),
+                   d_cl, data_size,
+                   cl.LocalMemory(local_work_size * 4), local_work_size)
+
+    if last_elt_scan is not None:
+        last_elt_scan(queue,
+                      (np.uint32(round_up_to_divide(number_of_chunks, 32)),),
+                      (np.uint32(round_up_to_divide(number_of_chunks, 32)),),
+                      d_cl, data_size,
+                      cl.LocalMemory(number_of_chunks * 4),
+                      number_of_chunks,
+                      single_chunk_size)
+
+    if filling_pass is not None:
+        filling_pass(queue, (global_work_size,), (local_work_size,),
+                     d_cl, data_size,
+                     single_chunk_size)
+
 def pipeline(impath:str):
     global ctx, queue
-    global rgb2hsl_ker, hsl2rgb_ker, lch_hist_ker, plus_scan_ker
+    global rgb2hsl_ker, hsl2rgb_ker, lch_hist_ker, lch_eqlz_ker
 
     # our cpu side input and output
     host_img = np.asarray(Image.open(impath))
-    img_width, img_height, img_nchans = host_img.size
+    img_width, img_height, img_nchans = host_img.shape
     img_npxls = img_width * img_height
     host_hist = np.zeros(256)
 
     # their gpu twins we're gonna operate on
-    dev_img = cl.Buffer
-    dev_hist = cl.Buffer
-
-    cl.enqueue_copy(queue, dev_img, host_img)
-    cl.enqueue_copy(queue, dev_hist, host_hist)
-    queue.finish()
+    mf = cl.mem_flags
+    dev_img = cl.Buffer(ctx,
+                        mf.COPY_HOST_PTR | mf.HOST_READ_ONLY | mf.READ_WRITE,
+                        host_img.nbytes,
+                        hostbuf = host_img)
+    dev_hist = cl.Buffer(ctx,
+                         mf.COPY_HOST_PTR | mf.HOST_READ_ONLY | mf.READ_WRITE,
+                         host_hist.nbytes,
+                         hostbuf = host_hist)
 
     # first step, turn the rgb image into an hsl image
-    rgb2hsl_ker(queue,       # queue on which the kernel invocation will be enqueued
-                (img_npxls,) # global work size to invoke kernel with
-                None,        # local work size (omitted since this kernel does no
-                             #  work group specific operations, so we can pass it
-                             #  None and let opencl figure it out for itself)
-
-                # then all the parameters to pass to the kernel function
+    rgb2hsl_ker(queue, (img_npxls,), None,
                 dev_img, dev_img, np.uint32(img_npxls))
-    queue.finish()
 
     # now that the image is in hsl compute the histogram of the l channel
     # 
@@ -77,25 +124,56 @@ def pipeline(impath:str):
 
     local_work_size = (np.uint32(threads_per_block),)
     global_work_size = (np.uint32(threads_per_block * number_of_blocks),)
-    lch_hist_ker(queue,
-                 local_work_size,
-                 global_work_size,
+    lch_hist_ker(queue, global_work_size, local_work_size,
                  dev_img, dev_hist,
-                 cl.LocalMemory(threads_per_block * 4), # array of uint32
-                                                        # one element per thread
-                                                        # 4 bytes per element
-                                                        # 256 threads per block
-                                                        # 256 * 4 bytes per block
+                 # array of uint32, one element per thread, 4 bytes per element
+                 # we have 256 threads per block => 256 * 4 bytes per block
+                 cl.LocalMemory(threads_per_block * 4), 
                  np.uint32(img_npxls), np.uint32(256))
-    queue.finish()
 
     # plus scan of the histogram since histogram normalization requires
     # the histogram's cdf and not the histogram itself
+    plus_scan_inplace(dev_hist, data_size=256)
 
     # normalize the l channel of the image
+    lch_eqlz_ker(queue, global_work_size, local_work_size,
+                 dev_img, dev_hist,
+                 np.uint32(img_npxls), np.uint32(256))
 
     # turn the image back into rgb
+    hsl2rgb_ker(queue, (img_npxls,), None,
+                dev_img, dev_img, np.uint32(img_npxls))
 
     # send luminosity normalized rgb image back to the cpu
+    target=np.empty_like(host_img)
+    cl.enqueue_copy(queue, target, dev_img)
 
     # and we're done :D
+    queue.finish()
+    return Image.fromarray(target, 'RGB')
+
+def plot_cmp_im(imgpath:str):
+    normal = Image.open(imgpath)
+    processed=pipeline(imgpath)
+
+    fig, (ax1, ax2) = plt.subplots(2, 1)
+    ax1.set_title("original image")
+    ax1.imshow(normal)
+    ax2.set_title("processed image")
+    ax2.imshow(processed)
+
+    plt.show()
+
+def main(argv):
+    img_path=None
+    if len(argv) > 1:
+        img_path=argv[1]
+    else:
+        cwd=os.path.dirname(__file__)
+        img_path=os.path.join(cwd, '../images/test_blue_to_green.png')
+        print(img_path)
+        
+    plot_cmp_im(img_path)
+
+if __name__=='__main__':
+    main(sys.argv)

@@ -20,9 +20,9 @@ scans_prog = compile_file('scans.cl', ctx)
 
 ks_block_scan     = scans_prog.ks_block_scan
 ks_last_elt_scan  = scans_prog.ks_last_elt_scan
-filling_pass   = scans_prog.filling_pass
+filling_pass      = scans_prog.filling_pass
 
-bk_block_scan = scans_prog.bk_block_scan
+bk_block_scan     = scans_prog.bk_block_scan
 bk_last_elt_scan  = scans_prog.bk_last_elt_scan
 
 should_stfu=False
@@ -31,9 +31,11 @@ should_stfu=False
 def copy_to_cl(d_np:np.ndarray):
     global queue
     mf = cl.mem_flags
-    d_cl = cl.Buffer(ctx, mf.READ_WRITE, d_np.nbytes)
-    cl.enqueue_copy(queue, d_cl ,d_np)
-    queue.finish()
+    d_cl = cl.Buffer(
+            ctx,
+            mf.COPY_HOST_PTR | mf.HOST_READ_ONLY | mf.READ_WRITE,
+            # d_np.nbytes,
+            hostbuf = d_np)
     return d_cl
 
 @kernel_test(name="baseline", die_on_error=False)
