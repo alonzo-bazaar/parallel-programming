@@ -89,6 +89,10 @@ build_benchmark() {
 	cc -o ./build/benchmark-soa-parallel $soa_files $benchmark_files src/benchmark-soa.c $parallel_benchmark_flags 
 	echo "sequential soa"
 	cc -o ./build/benchmark-soa-sequential $soa_files $benchmark_files src/benchmark-soa.c $sequential_benchmark_flags
+	echo "parallel aos"
+	cc -o ./build/benchmark-aos-parallel $aos_files $benchmark_files src/benchmark-aos.c $parallel_benchmark_flags 
+	echo "sequential aos"
+	cc -o ./build/benchmark-aos-sequential $aos_files $benchmark_files src/benchmark-aos.c $sequential_benchmark_flags
 }
 
 main() {

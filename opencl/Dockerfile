@@ -9,7 +9,7 @@
 # (I was planning on using wayland but it doesn't work as well, sorry :()
 
 FROM ubuntu:22.04
-LABEL autor="Sto Cazzo"
+LABEL autor="io sono colei che mi si crede"
 # god bless documentation
 #   https://docs.docker.com/reference/dockerfile/
 

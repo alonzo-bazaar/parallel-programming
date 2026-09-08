@@ -1,0 +1,154 @@
+++ date -d now +%Y-%m-%d-%H-%M-%S
++ datenow=2026-09-08-15-47-57
++ resdir=results/2026-09-08-15-47-57
++ s_soa=results/2026-09-08-15-47-57/benchmark-sequential-soa.csv
++ p_soa=results/2026-09-08-15-47-57/benchmark-parallel-soa.csv
++ s_aos=results/2026-09-08-15-47-57/benchmark-sequential-aos.csv
++ p_aos=results/2026-09-08-15-47-57/benchmark-parallel-aos.csv
++ mkdir -p results/2026-09-08-15-47-57
++ touch results/2026-09-08-15-47-57/benchmark-sequential-soa.csv
++ touch results/2026-09-08-15-47-57/benchmark-parallel-soa.csv
++ touch results/2026-09-08-15-47-57/benchmark-sequential-aos.csv
++ touch results/2026-09-08-15-47-57/benchmark-parallel-aos.csv
++ bench-exe ./build/benchmark-soa-sequential results/2026-09-08-15-47-57/benchmark-sequential-soa.csv
++ local exe=./build/benchmark-soa-sequential
++ local outfile=results/2026-09-08-15-47-57/benchmark-sequential-soa.csv
++ ./build/benchmark-soa-sequential --quiet 1 --num-boids 100 --num-threads 1 --num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-soa.csv
++ ./build/benchmark-soa-sequential --quiet 1 --num-boids 100 --num-threads 2 --num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-soa.csv
++ ./build/benchmark-soa-sequential --quiet 1 --num-boids 100 --num-threads 4 --num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-soa.csv
++ ./build/benchmark-soa-sequential --quiet 1 --num-boids 100 --num-threads 8 --num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-soa.csv
++ ./build/benchmark-soa-sequential --quiet 1 --num-boids 100 --num-threads 16 --num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-soa.csv
++ ./build/benchmark-soa-sequential --quiet 1 --num-boids 1000 --num-threads 1 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-soa.csv
+argparse_get_spec: found no spec for name -num-iterations
+oops! found '-num-iterations' argument but I don't know how to read it
++ ./build/benchmark-soa-sequential --quiet 1 --num-boids 1000 --num-threads 2 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-soa.csv
+argparse_get_spec: found no spec for name -num-iterations
+oops! found '-num-iterations' argument but I don't know how to read it
++ ./build/benchmark-soa-sequential --quiet 1 --num-boids 1000 --num-threads 4 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-soa.csv
+argparse_get_spec: found no spec for name -num-iterations
+oops! found '-num-iterations' argument but I don't know how to read it
++ ./build/benchmark-soa-sequential --quiet 1 --num-boids 1000 --num-threads 8 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-soa.csv
+argparse_get_spec: found no spec for name -num-iterations
+oops! found '-num-iterations' argument but I don't know how to read it
++ ./build/benchmark-soa-sequential --quiet 1 --num-boids 1000 --num-threads 16 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-soa.csv
+argparse_get_spec: found no spec for name -num-iterations
+oops! found '-num-iterations' argument but I don't know how to read it
++ ./build/benchmark-soa-sequential --quiet 1 --num-boids 10000 --num-threads 1 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-soa.csv
+argparse_get_spec: found no spec for name -num-iterations
+oops! found '-num-iterations' argument but I don't know how to read it
++ ./build/benchmark-soa-sequential --quiet 1 --num-boids 10000 --num-threads 2 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-soa.csv
+argparse_get_spec: found no spec for name -num-iterations
+oops! found '-num-iterations' argument but I don't know how to read it
++ ./build/benchmark-soa-sequential --quiet 1 --num-boids 10000 --num-threads 4 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-soa.csv
+argparse_get_spec: found no spec for name -num-iterations
+oops! found '-num-iterations' argument but I don't know how to read it
++ ./build/benchmark-soa-sequential --quiet 1 --num-boids 10000 --num-threads 8 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-soa.csv
+argparse_get_spec: found no spec for name -num-iterations
+oops! found '-num-iterations' argument but I don't know how to read it
++ ./build/benchmark-soa-sequential --quiet 1 --num-boids 10000 --num-threads 16 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-soa.csv
+argparse_get_spec: found no spec for name -num-iterations
+oops! found '-num-iterations' argument but I don't know how to read it
++ bench-exe ./build/benchmark-soa-parallel results/2026-09-08-15-47-57/benchmark-parallel-soa.csv
++ local exe=./build/benchmark-soa-parallel
++ local outfile=results/2026-09-08-15-47-57/benchmark-parallel-soa.csv
++ ./build/benchmark-soa-parallel --quiet 1 --num-boids 100 --num-threads 1 --num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-soa.csv
++ ./build/benchmark-soa-parallel --quiet 1 --num-boids 100 --num-threads 2 --num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-soa.csv
++ ./build/benchmark-soa-parallel --quiet 1 --num-boids 100 --num-threads 4 --num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-soa.csv
++ ./build/benchmark-soa-parallel --quiet 1 --num-boids 100 --num-threads 8 --num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-soa.csv
++ ./build/benchmark-soa-parallel --quiet 1 --num-boids 100 --num-threads 16 --num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-soa.csv
++ ./build/benchmark-soa-parallel --quiet 1 --num-boids 1000 --num-threads 1 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-soa.csv
+argparse_get_spec: found no spec for name -num-iterations
+oops! found '-num-iterations' argument but I don't know how to read it
++ ./build/benchmark-soa-parallel --quiet 1 --num-boids 1000 --num-threads 2 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-soa.csv
+argparse_get_spec: found no spec for name -num-iterations
+oops! found '-num-iterations' argument but I don't know how to read it
++ ./build/benchmark-soa-parallel --quiet 1 --num-boids 1000 --num-threads 4 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-soa.csv
+argparse_get_spec: found no spec for name -num-iterations
+oops! found '-num-iterations' argument but I don't know how to read it
++ ./build/benchmark-soa-parallel --quiet 1 --num-boids 1000 --num-threads 8 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-soa.csv
+argparse_get_spec: found no spec for name -num-iterations
+oops! found '-num-iterations' argument but I don't know how to read it
++ ./build/benchmark-soa-parallel --quiet 1 --num-boids 1000 --num-threads 16 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-soa.csv
+argparse_get_spec: found no spec for name -num-iterations
+oops! found '-num-iterations' argument but I don't know how to read it
++ ./build/benchmark-soa-parallel --quiet 1 --num-boids 10000 --num-threads 1 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-soa.csv
+argparse_get_spec: found no spec for name -num-iterations
+oops! found '-num-iterations' argument but I don't know how to read it
++ ./build/benchmark-soa-parallel --quiet 1 --num-boids 10000 --num-threads 2 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-soa.csv
+argparse_get_spec: found no spec for name -num-iterations
+oops! found '-num-iterations' argument but I don't know how to read it
++ ./build/benchmark-soa-parallel --quiet 1 --num-boids 10000 --num-threads 4 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-soa.csv
+argparse_get_spec: found no spec for name -num-iterations
+oops! found '-num-iterations' argument but I don't know how to read it
++ ./build/benchmark-soa-parallel --quiet 1 --num-boids 10000 --num-threads 8 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-soa.csv
+argparse_get_spec: found no spec for name -num-iterations
+oops! found '-num-iterations' argument but I don't know how to read it
++ ./build/benchmark-soa-parallel --quiet 1 --num-boids 10000 --num-threads 16 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-soa.csv
+argparse_get_spec: found no spec for name -num-iterations
+oops! found '-num-iterations' argument but I don't know how to read it
++ bench-exe ./build/benchmark-aos-sequential results/2026-09-08-15-47-57/benchmark-sequential-aos.csv
++ local exe=./build/benchmark-aos-sequential
++ local outfile=results/2026-09-08-15-47-57/benchmark-sequential-aos.csv
++ ./build/benchmark-aos-sequential --quiet 1 --num-boids 100 --num-threads 1 --num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-aos.csv
+bench: line 26: ./build/benchmark-aos-sequential: No such file or directory
++ ./build/benchmark-aos-sequential --quiet 1 --num-boids 100 --num-threads 2 --num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-aos.csv
+bench: line 27: ./build/benchmark-aos-sequential: No such file or directory
++ ./build/benchmark-aos-sequential --quiet 1 --num-boids 100 --num-threads 4 --num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-aos.csv
+bench: line 28: ./build/benchmark-aos-sequential: No such file or directory
++ ./build/benchmark-aos-sequential --quiet 1 --num-boids 100 --num-threads 8 --num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-aos.csv
+bench: line 29: ./build/benchmark-aos-sequential: No such file or directory
++ ./build/benchmark-aos-sequential --quiet 1 --num-boids 100 --num-threads 16 --num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-aos.csv
+bench: line 30: ./build/benchmark-aos-sequential: No such file or directory
++ ./build/benchmark-aos-sequential --quiet 1 --num-boids 1000 --num-threads 1 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-aos.csv
+bench: line 32: ./build/benchmark-aos-sequential: No such file or directory
++ ./build/benchmark-aos-sequential --quiet 1 --num-boids 1000 --num-threads 2 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-aos.csv
+bench: line 33: ./build/benchmark-aos-sequential: No such file or directory
++ ./build/benchmark-aos-sequential --quiet 1 --num-boids 1000 --num-threads 4 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-aos.csv
+bench: line 34: ./build/benchmark-aos-sequential: No such file or directory
++ ./build/benchmark-aos-sequential --quiet 1 --num-boids 1000 --num-threads 8 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-aos.csv
+bench: line 35: ./build/benchmark-aos-sequential: No such file or directory
++ ./build/benchmark-aos-sequential --quiet 1 --num-boids 1000 --num-threads 16 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-aos.csv
+bench: line 36: ./build/benchmark-aos-sequential: No such file or directory
++ ./build/benchmark-aos-sequential --quiet 1 --num-boids 10000 --num-threads 1 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-aos.csv
+bench: line 38: ./build/benchmark-aos-sequential: No such file or directory
++ ./build/benchmark-aos-sequential --quiet 1 --num-boids 10000 --num-threads 2 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-aos.csv
+bench: line 39: ./build/benchmark-aos-sequential: No such file or directory
++ ./build/benchmark-aos-sequential --quiet 1 --num-boids 10000 --num-threads 4 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-aos.csv
+bench: line 40: ./build/benchmark-aos-sequential: No such file or directory
++ ./build/benchmark-aos-sequential --quiet 1 --num-boids 10000 --num-threads 8 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-aos.csv
+bench: line 41: ./build/benchmark-aos-sequential: No such file or directory
++ ./build/benchmark-aos-sequential --quiet 1 --num-boids 10000 --num-threads 16 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-sequential-aos.csv
+bench: line 42: ./build/benchmark-aos-sequential: No such file or directory
++ bench-exe ./build/benchmark-aos-parallel results/2026-09-08-15-47-57/benchmark-parallel-aos.csv
++ local exe=./build/benchmark-aos-parallel
++ local outfile=results/2026-09-08-15-47-57/benchmark-parallel-aos.csv
++ ./build/benchmark-aos-parallel --quiet 1 --num-boids 100 --num-threads 1 --num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-aos.csv
+bench: line 26: ./build/benchmark-aos-parallel: No such file or directory
++ ./build/benchmark-aos-parallel --quiet 1 --num-boids 100 --num-threads 2 --num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-aos.csv
+bench: line 27: ./build/benchmark-aos-parallel: No such file or directory
++ ./build/benchmark-aos-parallel --quiet 1 --num-boids 100 --num-threads 4 --num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-aos.csv
+bench: line 28: ./build/benchmark-aos-parallel: No such file or directory
++ ./build/benchmark-aos-parallel --quiet 1 --num-boids 100 --num-threads 8 --num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-aos.csv
+bench: line 29: ./build/benchmark-aos-parallel: No such file or directory
++ ./build/benchmark-aos-parallel --quiet 1 --num-boids 100 --num-threads 16 --num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-aos.csv
+bench: line 30: ./build/benchmark-aos-parallel: No such file or directory
++ ./build/benchmark-aos-parallel --quiet 1 --num-boids 1000 --num-threads 1 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-aos.csv
+bench: line 32: ./build/benchmark-aos-parallel: No such file or directory
++ ./build/benchmark-aos-parallel --quiet 1 --num-boids 1000 --num-threads 2 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-aos.csv
+bench: line 33: ./build/benchmark-aos-parallel: No such file or directory
++ ./build/benchmark-aos-parallel --quiet 1 --num-boids 1000 --num-threads 4 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-aos.csv
+bench: line 34: ./build/benchmark-aos-parallel: No such file or directory
++ ./build/benchmark-aos-parallel --quiet 1 --num-boids 1000 --num-threads 8 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-aos.csv
+bench: line 35: ./build/benchmark-aos-parallel: No such file or directory
++ ./build/benchmark-aos-parallel --quiet 1 --num-boids 1000 --num-threads 16 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-aos.csv
+bench: line 36: ./build/benchmark-aos-parallel: No such file or directory
++ ./build/benchmark-aos-parallel --quiet 1 --num-boids 10000 --num-threads 1 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-aos.csv
+bench: line 38: ./build/benchmark-aos-parallel: No such file or directory
++ ./build/benchmark-aos-parallel --quiet 1 --num-boids 10000 --num-threads 2 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-aos.csv
+bench: line 39: ./build/benchmark-aos-parallel: No such file or directory
++ ./build/benchmark-aos-parallel --quiet 1 --num-boids 10000 --num-threads 4 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-aos.csv
+bench: line 40: ./build/benchmark-aos-parallel: No such file or directory
++ ./build/benchmark-aos-parallel --quiet 1 --num-boids 10000 --num-threads 8 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-aos.csv
+bench: line 41: ./build/benchmark-aos-parallel: No such file or directory
++ ./build/benchmark-aos-parallel --quiet 1 --num-boids 10000 --num-threads 16 -num-iterations 8000 --output-file results/2026-09-08-15-47-57/benchmark-parallel-aos.csv
+bench: line 42: ./build/benchmark-aos-parallel: No such file or directory
