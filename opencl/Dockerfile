@@ -65,4 +65,5 @@ RUN pip3 install PyQt5 matplotlib pillow
 RUN mkdir -p /root/workspace/c
 RUN mkdir -p /root/workspace/python
 RUN mkdir -p /root/workspace/tools
+RUN mkdir -p /root/workspace/results
 ENV PATH="$PATH:/root/workspace/tools"

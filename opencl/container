@@ -103,6 +103,7 @@ image_run_headless() {
         --mount type=bind,src=./c-workspace,dst=/root/workspace/c \
         --mount type=bind,src=./python-workspace,dst=/root/workspace/python \
         --mount type=bind,src=./images,dst=/root/workspace/images \
+        --mount type=bind,src=./results,dst=/root/workspace/results \
         --mount type=bind,src=../tools,dst=/root/workspace/tools \
         --name "${CONTAINER_NAME}" \
         "${IMAGE_NAME}" \
@@ -149,6 +150,7 @@ image_run_head() {
         --mount type=bind,src=./c-workspace,dst=/root/workspace/c \
         --mount type=bind,src=./python-workspace,dst=/root/workspace/python \
         --mount type=bind,src=./images,dst=/root/workspace/images \
+        --mount type=bind,src=./results,dst=/root/workspace/results \
         --mount type=bind,src=../tools,dst=/root/workspace/tools \
         --name "${CONTAINER_NAME}" \
         "${IMAGE_NAME}" \

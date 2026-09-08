@@ -78,7 +78,8 @@ def bench_norm_image(image_path):
     times[image_name] = []
     for ss in [1, 2, 4, 8]:
         # image under test, derived by subsampling original image
-        iut = rgb_image[::ss,::ss,::]
+        # array made contiguous for parity with opencl impl which requires contiguity
+        iut = np.ascontiguousarray(rgb_image[::ss,::ss,::])
         with TimedBlock(f'{image_name} with subsampling: {ss}',
                         append_time_into=times[image_name]):
             for _ in range(run_times):

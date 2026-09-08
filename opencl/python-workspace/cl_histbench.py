@@ -38,7 +38,6 @@ def copy_to_cl(d_np:np.ndarray):
     mf = cl.mem_flags
     d_cl = cl.Buffer(ctx,
                      mf.COPY_HOST_PTR | mf.HOST_READ_ONLY | mf.READ_WRITE,
-                     # d_np.nbytes,
                      hostbuf = d_np)
     return d_cl
 
@@ -80,12 +79,10 @@ def plus_scan_inplace(d_cl,
                      d_cl, data_size,
                      single_chunk_size)
 
-def pipeline(impath:str):
+def pipeline(host_img:str):
     global ctx, queue
     global rgb2hsl_ker, hsl2rgb_ker, lch_hist_ker, lch_eqlz_ker
-
-    # our cpu side input and output
-    host_img = np.asarray(Image.open(impath))
+    
     img_width, img_height, img_nchans = host_img.shape
     img_npxls = img_width * img_height
     host_hist = np.zeros(256)
@@ -152,28 +149,41 @@ def pipeline(impath:str):
     queue.finish()
     return Image.fromarray(target, 'RGB')
 
-def plot_cmp_im(imgpath:str):
-    normal = Image.open(imgpath)
-    processed=pipeline(imgpath)
+times = {}
+resolutions = {}
+run_times=10
 
-    fig, (ax1, ax2) = plt.subplots(2, 1)
-    ax1.set_title("original image")
-    ax1.imshow(normal)
-    ax2.set_title("processed image")
-    ax2.imshow(processed)
+def bench_norm_image(image_path:str):
+    image = np.asarray(Image.open(image_path))
+    image_name = image_path.split('/')[-1]
+    resolutions[image_name] = image.shape
+    times[image_name] = []
+    for ss in [1, 2, 4, 8]:
+        # image under test, derived by subsampling original image
+        # array must be contiguous to be transformable into opencl buffer
+        iut = np.ascontiguousarray(image[::ss,::ss,::])
+        with TimedBlock(f'{image_name} with subsampling: {ss}',
+                        append_time_into=times[image_name]):
+            for _ in range(run_times):
+                pipeline(iut)
 
-    plt.show()
-
-def main(argv):
-    img_path=None
-    if len(argv) > 1:
-        img_path=argv[1]
-    else:
-        cwd=os.path.dirname(__file__)
-        img_path=os.path.join(cwd, '../images/test_blue_to_green.png')
-        print(img_path)
-        
-    plot_cmp_im(img_path)
+def main():
+    bench_norm_image('../images/germano.jpg')
+    bench_norm_image('../images/tree_sun.jpg')
+    bench_norm_image('../images/brit.jpg')
+    bench_norm_image('../images/flat_red.png')
+    bench_norm_image('../images/mona.jpg')
+    ofp='../results/opencl.csv'
+    with open(ofp, 'w') as of: 
+        pkw={'file': of, 'flush': True}
+        print('name,nruns,width,height,time', **pkw)
+        for name in times.keys():
+            (w, h, _) = resolutions[name]
+            [t1, t2, t4, t8] = times[name]
+            print(f'{name},{run_times},{w//1},{h//1},{t1}', **pkw)
+            print(f'{name},{run_times},{w//2},{h//2},{t2}', **pkw)
+            print(f'{name},{run_times},{w//4},{h//4},{t4}', **pkw)
+            print(f'{name},{run_times},{w//8},{h//8},{t8}', **pkw)
 
 if __name__=='__main__':
-    main(sys.argv)
+    main()
