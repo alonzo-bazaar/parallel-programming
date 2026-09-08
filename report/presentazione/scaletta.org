@@ -1,0 +1,112 @@
+- introdurre che s'è fatto
+- schema generale
+  - (parte kiro) alberi
+    - alfabeto
+      - parametrico
+    - rewrite rules
+      - stocastico
+    - turtle graphics
+      - (genera le mesh)
+    - rappresentazione testuale di l system stocastici parametrici in un formato json
+  - menu
+    - macchina a stati del menu
+
+  - (parte rod) tutto il resto
+  - terrain
+    - generazione procedurale terreno
+    - perlin noise
+  - shader
+    - shader
+  - player
+    - frustum culling
+    - movement, controls, bobbing, cazzi e mazzi
+
+# Alberi
+
+
+# Scaletta
+## Parte Kiro
+- schema generale
+  - riscrittura
+  - tartaruga
+  - esempio: alfabeto base base `&^+-Ff`, e parla di `[]`
+
+- simboli parametrici
+- riscrittura stocastica, seed
+- schema turtle
+  - pattern builder
+
+- json
+  - nlohmann::json
+  - forma di un l-system nel nostro json
+    - parametri
+    - rewrite rule deterministiche e stocastiche
+
+## Parte Rod
+- terreno
+  - procedurale
+    - utilizzo chunk
+    - gestione chunk
+    - utilizzo perlin noise
+    - variazioen texture nel terreno generato
+
+menzionate le texture nel terreno si passa a parlare delle texture
+
+- texture (mra, normal map, &Co.)
+  "abbiamo riadattato uno shader pbr off the shelf per averce la luce direzionale, non ci serviva la metalness l'abbiamo messa a 0"
+
+e dalle texture si passa allo shader
+
+- shader
+  - pbr
+  - light
+  - abbiamo usato due shader differenti per il terreno e gli alberi visto che il terreno doveva gestire due texture mra mentre gli alberi ne hanno una sola
+
+poi
+
+- player
+  - camera
+  - controlli
+  - fisica
+  - render distance
+  - frustum
+    - piani del frustum
+    - frustum culling
+
+# Allocazione slide (ad cazzum)
+## Parte Kiro
+(la mi parte la faccio abbastanza bottom up)
+
+1-2 slide
+- schema generale di l system è che
+  - alfabeto di istruzioni
+  - riscruttura tot volte di una stringa di istruzioni
+  - stringa riscritta viene passata a turtle graphics
+e menzionare che noi ne facciamo uno stocastico parametrico
+
+1-2 slide
+- alfabeto di istruzioni
+  esempio: `&^+-Ff`, e parla di `[]`
+- i caratteri possono essere parametrici
+- o elemento che può essere espanso poi in una qualche stringa
+
+2-3 slide
+- riscrittura
+- riscrittura stocastica
+- riscrittura parametrica
+- riscrittura stocastica e parametrica
+
+1-2 slide
+- turtle
+
+1-2 slide
+- json
+
+7 - 12
+
+## Parte Rod
+- 3 terreno
+  - procedurale, utilizzo chunk...
+- 1 texture
+- 2 shader
+- 2 player

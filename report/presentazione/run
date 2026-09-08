@@ -1,0 +1,279 @@
+#!./assets/tools/shsl
+;; -*- mode:clojure -*-
+;; vi: set ft=clojure:
+
+;; this script sets up both the windows and linux typst environment needed to
+;; compile presentation.typ but until I figure out how to implement these
+;; - file? 
+;; - mv
+;; - rm
+;; - rm-r
+;; - mkdir
+;; functions on windows, it's gonna run on posix only :(
+;; scusa rod
+
+;; utils
+(defn arg? [a]
+  (find argv a))
+
+(defn map-list [f s]
+  (when s (cons (f (car s)) (map-list f (cdr s)))))
+
+(defn map-vec [f s]
+  (let [acc []]
+    (s-foreach [elt s]
+               (vec-push! acc (f elt)))
+    acc))
+
+(defn map [f s]
+  (cond ((list? s) (map-list f s))
+        ((vec? s) (map-vec f s))
+        ((str? s) (join-with "" (map-vec f s)))
+        (t (err "map: nuh uh" {:function f :collection s}))))
+
+(defn reduce-list [f l]
+  (when l
+    (let [a (car l)
+          i (cdr l)]
+      (while i
+        (set a (f a (car i)))
+        (set i (cdr i)))
+      a)))
+
+(defn reduce-vec [f v]
+  (when (> (len v) 0)
+    (let [a (get v 0)
+          i 1
+          l (len v)]
+      (while (< i l)
+        (set a (f a (get v i)))
+        (set i (+ i 1)))
+      a)))
+
+(defn reduce [f s]
+  (cond ((list? s) (reduce-lst f s))
+        ((or (vec? s) (str? s)) (reduce-vec f s))
+        (t (err "reduce: nuh uh") {:function f :collection s})))
+
+(defn find-if-list [l f]
+  (let [i l]
+    (while (and i (not (f (car i))))
+      (set i (cdr i)))
+    (car i)))
+
+(defn find-if-vec [v f]
+  (when (> (len v) 0)
+    (let [i 0
+          l (len v)]
+      (while (and (> l i) (not (f (get v i))))
+        (set i (+ i 1)))
+      (and (> l i) (get v i)))))
+
+(defn find-if [s f]
+  (cond ((list? s) (find-if-list s f))
+        ((or (vec? s) (str? s)) (find-if-vec s f))
+        (t (err "find-if: nuh uh" {:collection s :function f}))))
+
+(defn complement [f]
+  (fn [a] (not (f a))))
+
+(defn find-if-not [s f]
+  (find-if s (complement f)))
+
+;; TODO: this but for lists as well
+(defn starts-with [sq pref]
+  (when (>= (len sq) (len pref))
+    (let [l (len pref)
+          m 0
+          i 0]
+      (while (and (< i l) (= (get sq i) (get pref i)))
+        (set i (+ i 1))
+        (set m (+ m 1)))
+      (= m l))))
+
+(defn file? [path]
+  (cond (unix?  (with-log-level log-level-none
+                  (= "" (:stderr (exec-strs "ls" path)))))
+        (win32? t))) ;; temporary lack of an implementation :(
+(defn rm [a]
+  (cond (unix? (when (file? a) (exec-or-die "rm" a)))
+        (win32? t)))
+(defn rm-r [a]
+  (cond (unix? (when (file? a) (exec-or-die "rm" "-r" a)))
+        (win32? t)))
+(defn mv [a b]
+  (cond (unix? (exec-or-die "mv" a b))
+        (win32? t)))
+(defn mkdir [path]
+  (cond (unix? (exec-or-die "mkdir" path))
+        (win32 t)))
+(defn mkdir-if-need [path]
+  (unless (file? path)
+          (mkdir path)))
+
+(def curl-exe (cond (unix? "curl")
+                    (win32? "curl.exe")))
+(defn download [url path]
+  (exec-or-die curl-exe
+               ["-L" url]
+               ["-o" path]))
+(defn download-if-need [url path]
+  (unless (file? path)
+          (download url path)))
+
+(defn dir/ [a b]
+  (cond (unix?  (str a "/" b))
+        (win32? (str a "\\" b))))
+
+(defn dir-cat [&rest args]
+  (reduce dir/ args))
+
+(defn url/ [a b]
+  (str a "/" b))
+
+;; only here for displaying
+;; unrealted to the whole windows command escaping logic (for now)
+(defn cmd->str [cmd]
+  (let* [quote-if-need (fn [s]
+                         (if (or (find " " s) (find "\t" s) (find "\n" s))
+                           (str "\"" s "\"")
+                           s))
+         quoted (map quote-if-need cmd)
+         rendered (join-with " " quoted)]
+    rendered))
+
+(defn print-cmd [cmd]
+  (let [s (cmd->str cmd)]
+    (print s)
+    s))
+
+(defn println-cmd [cmd]
+  (let [s (cmd->str cmd)]
+    (println s)
+    s))
+
+(def -x t)
+
+(defn exec-or-die [& args]
+  (set args (vec-cat-vec (map (fn [x] (if (vec? x) x [x])) args)))
+  (when -x (print "running: ") (println-cmd args))
+  (or
+    (exec-vec args)
+    (do (print "failed to run command ") (println-cmd args) (exit 1))))
+
+;; business logic
+;; fonts:
+(def assets-dir (dir/ "." "assets"))
+(def tools-dir (dir/ assets-dir "tools"))
+(def fonts-dir (dir/ assets-dir "fonts"))
+(def templates-dir (dir/ assets-dir "templates"))
+
+;; download comic sans fonts from
+;; https://archive.org/details/ComicSansMSRegularBold
+;; download jetbrains mono fonts from
+;; https://download.jetbrains.com/fonts/JetBrainsMono-2.304.zip
+;; I also downloaded fira mono but that only had a button
+;; and inspect element doesn't seem to show a link to it :(
+(defn ensure-fonts []
+  (let [cs-base-url "https://archive.org/download/ComicSansMSRegularBold"
+        jm-zip-url "https://download.jetbrains.com/fonts/JetBrainsMono-2.304.zip"]
+    ;; fonts directory
+    (mkdir-if-need fonts-dir)
+
+    ;; comic cans
+    (download-if-need (url/ cs-base-url "COMIC.TTF")
+                      (dir/ fonts-dir   "comic.ttf"))
+    (download-if-need (url/ cs-base-url "COMICBD.TTF")
+                      (dir/ fonts-dir   "comicbd.ttf"))
+
+    ;; jetbrains mono
+    (unless (file? (dir/ fonts-dir "JetBrainsMono-2.304.zip"))
+            (download jm-zip-url (dir/ fonts-dir "JetBrainsMono-2.304.zip"))
+            (exec-or-die "unzip"
+                         (dir/ fonts-dir "JetBrainsMono-2.304.zip")
+                         ["-d" fonts-dir]))))
+
+(defn ensure-templates []
+  (let* [dir (str templates-dir "/typslides")
+         tar-name "typslides-1.3.4.tar.gz"
+         tar-url (str "https://packages.typst.org/preview/" tar-name)]
+  (unless (file? dir)
+          ;; the typslides tarball does not have a dir to put its contents in
+          ;; it spews its contents all over the working directory it's
+          ;; extracted in
+          (mkdir dir)
+          (download tar-url (dir/ dir tar-name))
+          (exec-or-die "tar"
+                       ["-xzf" (dir/ dir tar-name)]
+                       ["-C" dir]))))
+
+;; I'm gonna download the typst executable for both linux and windows
+;; then figure out switch on which one to use when the script starts
+;; for maximum uh... idfk tbh, I like it more :(
+(defn remove-extension [filename]
+  (get (split-on "." filename) 0))
+
+(defn ensure-typst []
+  (mkdir-if-need tools-dir)
+
+  (let* [release-url "https://github.com/typst/typst/releases/download/v0.15.1"
+
+         linux-archive "typst-x86_64-unknown-linux-musl.tar.xz"
+         linux-archive-path (dir/ tools-dir   linux-archive)
+         linux-archive-dir  (dir/ tools-dir   (remove-extension linux-archive))
+         linux-archive-url  (url/ release-url linux-archive)
+
+         windows-archive "typst-x86_64-pc-windows-msvc.zip"
+         windows-archive-path (dir/ tools-dir   windows-archive)
+         windows-archive-dir  (dir/ tools-dir   (remove-extension windows-archive))
+         windows-archive-url  (url/ release-url windows-archive)
+         
+         linux-exe   (dir/ tools-dir "typst")
+         windows-exe (dir/ tools-dir "typst.exe")]
+
+    (unless (and (file? linux-exe) (file? windows-exe))
+            ;; linux exe
+            (download linux-archive-url linux-archive-path)
+            (exec-or-die "tar"
+                        ["-xf" linux-archive-path] ;; .tar.xz -> -xf
+                                                   ;; .tar.gz -> -xzf
+                                                   ;; thank you tar, very cool
+                        ["-C" tools-dir])
+            (mv (dir/ linux-archive-dir "typst") tools-dir)
+
+            ;; windows exe
+            (download windows-archive-url windows-archive-path)
+            (exec-or-die "unzip"
+                        windows-archive-path
+                        ["-d" tools-dir])
+            (mv (dir/ windows-archive-dir "typst.exe") tools-dir))))
+
+(defn ensure-assets []
+  (ensure-fonts)
+  (ensure-templates)
+  (ensure-typst))
+
+;; running:
+(def typst-file
+  (or (find-if argv (fn [arg] (not (starts-with arg "--"))))
+    "presentation.typ"))
+
+(def typst-exe
+  (cond (unix? (dir/ tools-dir "typst"))
+        (win32? (dir/ tools-dir "typst.exe"))))
+
+(defn typst-watch [file]
+  (exec-or-die typst-exe
+               ["watch" typst-file]
+               ["--font-path" fonts-dir]))
+
+(defn typst-compile [file]
+  (exec-or-die typst-exe
+               ["compile" typst-file]
+               ["--font-path" fonts-dir]))
+
+(ensure-assets)
+
+(cond ((arg? "--watch")   (typst-watch typst-file))
+      ((arg? "--compile") (typst-compile typst-file))
+      (t                  (typst-compile typst-file)))
