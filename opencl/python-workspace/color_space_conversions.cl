@@ -42,7 +42,7 @@ uchar3 rgb2hsl_pixel(const uchar r, const uchar g, const uchar b) {
         float hf;
         if(u_max == r) hf = (gf-bf) / df+(g<b?6.0f:0.0f);
         if(u_max == g) hf = (bf-rf) / df+2.0f;
-        if(u_max == b) hf = (bf-rf) / df+2.0f;
+        if(u_max == b) hf = (bf-rf) / df+4.0f;
         hf /= 6.0f;
         return (uchar3){f2uchar(hf), f2uchar(sf), f2uchar(lf)};
     }

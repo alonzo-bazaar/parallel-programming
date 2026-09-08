@@ -19,6 +19,13 @@ def horizontal_gradient(width:int, height:int, start:tuple, end:tuple):
     image_pixels = np.stack([pixel_row for _ in range(height)])
     return Image.fromarray(image_pixels, 'RGB')
 
+def flat_image(width:int, height:int, color:tuple):
+    pixels=np.stack([np.astype(np.floor(np.ones((width, height)) * c * 255),
+                               np.uint8)
+                     for c in color],
+                     dtype=np.uint8).transpose((1, 2, 0))
+    return Image.fromarray(pixels)
+
 colors = {
     'red' : (1, 0, 0),
     'green' : (0, 1, 0),
@@ -60,6 +67,13 @@ ims = cat(
         if a != b]
 )
 
-for (start_color, end_color, name) in ims:
-    print(f'generating image "{name}"...')
-    horizontal_gradient(100, 100, start_color, end_color).save(name)
+# generate gradient images
+for (start_color, end_color, image_name) in ims:
+    print(f'generating image "{image_name}"...')
+    horizontal_gradient(100, 100, start_color, end_color).save(image_name)
+
+# generate flat images
+for color_name in colors.keys():
+    image_name=f'./flat_{color_name}.png'
+    print(f'generating image "{image_name}"...')
+    flat_image(100, 100, colors[color_name]).save(image_name)
