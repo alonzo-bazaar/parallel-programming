@@ -1,0 +1,24 @@
+problem at hand
+- histogram equalization
+- problem description (data flow, what each part does)
+- where parallel
+  - color space conversion is a map
+  - histogram
+  - equalization also acts as a map
+technical choices
+- opencl
+- pyopencl
+- numpy
+- docker
+parallel (opencl) implementation
+- buffers&Co.
+- parallel patterns used (map and histogram)
+sequential (numpy) implementation
+- wanting to... the numpy implementation sadly has O(n) overhead since the best way was to separate channels, so we got two transpositions
+benchmarks
+- benchmark code/test data (red brit germano mosconi)
+- benchark data (tested with ... and ...)
+- benchark code (show the two loops)
+- benchark results (mpl er up)
+conclusions
+- ocl go brrr

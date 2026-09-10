@@ -1,0 +1,16 @@
+problem at hand
+- boids
+- problem description
+- where parallel (handling of all boids in one iteration they're all separate)
+- approaches we're comparing (struct of array, array of struct, sequential, parallel)
+technologies used
+- c
+- openmp
+implementations
+- soa
+- aos
+- (parallel and sequential differ only by pragmas)
+benchmarks
+- benchmark code
+- benchmark results
+conclusions
