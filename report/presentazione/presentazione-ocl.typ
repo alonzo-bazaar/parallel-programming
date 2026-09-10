@@ -37,7 +37,7 @@
   - Compute this value for every pixel
     #image("./assets/images/formula.webp", height:20%)
   (formula from #link("https://polaris000.medium.com/histogram-equalization-c67bfa9e2a3b")[an article on medium])
-  - optional: as a preprocessing step, an rgb image may be converted to a color space like #link("https://en.wikipedia.org/wiki/HSL_and_HSV")[hsl] for processing, then converted back to rgb after processing
+  - optional: as a preprocessing step, an rgb image may be converted to a color space like #link("https://en.wikipedia.org/wiki/HSL_and_HSV")[HSL] for processing, then converted back to rgb after processing
 ]
 #slide(title:"Our Procedure, and Parallel Patterns Therein", outlined: true)[
   what we're doing is
@@ -59,11 +59,11 @@
     - Fairer compairison with GPU Python code than doing it in C or C++
     (any potential overhead from python runtime will be present in both the parallel and the sequential version)
 ]
-#slide(title:"OpenCL Implementation: outline", outlined: true)[
+#slide(title:"OpenCL Implementation", outlined: true)[
   PyOpenCL code laid out according to following pipeline
   - host image is read from file, host histogram is initialized to all zeros
   - host image and histogram are copied over to device
-  - device image is converted from rgb(a) to hsl(a) inplace
+  - device image is converted from RGB(A) to HSL(A) inplace
   - histogram of L channel in device image computed into device histogram
   - compute addition scan of device histogram inplace
   - device image L channel normalized inplace
@@ -128,28 +128,85 @@ __kernel void ks_block_scan(__global uint* global_data,
     if(is_active) global_data[global_idx] = local_data[local_idx];
 }
 ```
-]
-]
+]]
 
 #slide(title:"NumPy Implementation", outlined: true)[
-  - pinco pallino
-  - si ruppe il nasino
-  - ei era un cogliole
-  - ei era un cretino
-  - pinco pallino
-  - si spezzo il bacino
-  - lo presi a mazzate
-  - con un tavolino
+  NumPy code laid out according to following pipeline
+  - image is split into R, G, B (and A) channels (transposition then splitting)
+  - R, G, and B channels are "undiscretized" from `np.uint8` into `np.float`
+  - continuous R, G, and B channels are used to compute continuous H, S, and L channels (not inplace)
+  - L channel undergoes histogram normalization (requires discretization as an intermediate step)
+  - H, S, and normalized L channel are turned back into R, G, and B channels
+  - the normalized R, G, and B channels are used (together with the A channel) to construct the normalized image (requires another transposition)
+  This is a different set of operations from the PyOpenCL code but porting the degree of index fiddling done in OpenCL to NumPy proved problematic, requiring the two transpositions.
+]
+#slide(title:"NumPy Implementation: code")[
+```python
+def continuous(ch:np.ndarray) -> np.ndarray:
+    return ch.astype(np.float32)/256
+def discrete(ch:np.ndarray) -> np.ndarray:
+    return bound(np.floor(ch*256), by=255).astype(np.uint8)
+
+# ...
+
+r, g, b = np.transpose(image, (2, 0, 1))
+r, g, b = map(continuous, [r, g, b])
+h, s, l = rgb2hsl(r, g, b)
+dl = discrete(l)
+hist_l = np.histogram(dl.flatten(), np.arange(257))[0]
+cdf_hist_l = np.cumsum(hist_l)
+dl = bound(cdf_hist_l[dl] * 256 / dl.size).astype(np.uint8)
+r, g, b = map(discrete, hsl2rgb(h, s, l))
+out = np.stack([r, g, b])
+```
 ]
 
 #focus-slide[Benchmarks]
-#slide(title:"Benchmarks", outlined:true)[ ]
-#slide(title:"Benchmarks Data")[ ]
+#slide(title:"Benchmarks", outlined:true)[
+  The PyOpenCL and the numpy versions have been tested on a small set of heterogeneous images to see how much would they take to equalize the image 10 times #linebreak()
+  The test images used are:
+  #cols(columns: (3fr, 2fr, 1fr, 3fr, 1fr), gutter: 2em)[
+    #image("assets/images/germano.jpg", height:30%)
+ ][ #image("assets/images/flat_red.png", height:30%)
+ ][ #image("assets/images/small-mona.jpg", height:30%)
+ ][ #image("assets/images/tree_sun.jpg", height:30%)
+ ][ #image("assets/images/brit.jpg", height:30%) ]
+]
 #slide(title:"Benchmarks Code")[ ]
-#slide(title:"Benchmarks Results")[ ]
-#slide(title:"Benchmarks Results: flat red")[ ]
-#slide(title:"Benchmarks Results: photographs")[ ]
-#slide(title:"Benchmarks Results: painting")[ ]
+#slide(title:"Benchmarks Results")[
+  Time taken to equalize 10 image times 
+#text(size: 15pt)[
+  #cols(columns: (1fr, 1fr, 1fr, 1fr, 1fr), gutter: 0em)[
+    #image("assets/images/germano.jpg", height:20%) #linebreak()
+    - Image Size: 421x748
+    - NumPy: 0.659s
+    - PyOpenCL: 0.023s
+    - Speedup: *28.64*
+ ][ #image("assets/images/flat_red.png", height:20%)
+    - Image Size: 100x100
+    - NumPy: 0.021s
+    - PyOpenCL: 0.012s
+    - Speedup: *1.642*
+ ][ #image("assets/images/small-mona.jpg", height:20%)
+    - Image Size: 11146x7479
+    - NumPy: 223.8s
+    - PyOpenCL: 4.863s
+    - Speedup: *46.03*
+ ][ #image("assets/images/tree_sun.jpg", height:20%)
+    - Image Size: 796x1200
+    - NumPy: 2.016s
+    - PyOpenCL: 0.041s
+    - Speedup: *48.13*
+ ][ #image("assets/images/brit.jpg", height:20%)
+    - Image Size: 800x528
+    - NumPy: 0.835s
+    - PyOpenCL: 0.025s
+    - Speedup: *33.35*
+ ]]]
 
 #focus-slide[Conclusions]
-#slide(title:"In Conclusion", outlined:true)[ ]
+#slide(title:"In Conclusion", outlined:true)[
+  The PyOpenCL version is significantly faster in most cases. With a speedup 45 for larger images, and around 30 for smaller images. #linebreak()
+
+  The main outliar is the *1.642* speedup for the small flat red image, this is likely due to the image being very small, leading to high relative cost of sending the data over to gpu, being flat, there will also be high contention in the histogram kernel with all threads writing to the same address, leading to further loss of performance in the parallel version.
+]
