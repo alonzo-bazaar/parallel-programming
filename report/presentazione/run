@@ -10,7 +10,6 @@
 ;; - rm-r
 ;; - mkdir
 ;; functions on windows, it's gonna run on posix only :(
-;; scusa rod
 
 ;; utils
 (defn arg? [a]
@@ -253,10 +252,7 @@
   (ensure-templates)
   (ensure-typst))
 
-;; running:
-(def typst-file
-  (or (find-if argv (fn [arg] (not (starts-with arg "--"))))
-    "presentation.typ"))
+
 
 (def typst-exe
   (cond (unix? (dir/ tools-dir "typst"))
@@ -264,16 +260,13 @@
 
 (defn typst-watch [file]
   (exec-or-die typst-exe
-               ["watch" typst-file]
+               ["watch" file]
                ["--font-path" fonts-dir]))
 
 (defn typst-compile [file]
   (exec-or-die typst-exe
-               ["compile" typst-file]
+               ["compile" file]
                ["--font-path" fonts-dir]))
 
 (ensure-assets)
-
-(cond ((arg? "--watch")   (typst-watch typst-file))
-      ((arg? "--compile") (typst-compile typst-file))
-      (t                  (typst-compile typst-file)))
+(map typst-compile ["presentazione-ocl.typ"])
