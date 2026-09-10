@@ -40,7 +40,7 @@ raylib_dir="$(get_raylib_dir)"
 # the flag itself would be split by spaces into multiple flags
 # and it would all get painful
 
-common_build_flags="-I./include -Wall -Wextra -Wpedantic -Wrestrict -lm -lomp"
+common_build_flags="-I./include -Wall -Wextra -Wpedantic -Wrestrict -lm -lomp -O2" # "-g3 -ggdb"
 omp_build_flags="$(get_omp_build_flags)"
 raylib_build_flags="-I$raylib_dir/include -L$raylib_dir/lib/ -lraylib"
 

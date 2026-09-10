@@ -26,30 +26,23 @@ touch "$p_aos"
 bench-exe() {
 	local exe="$1"
 	local outfile="$2"
-	$exe --quiet 1 --num-boids 100   --num-threads 1  --num-iterations  8000 --output-file "$outfile"
-	$exe --quiet 1 --num-boids 100   --num-threads 2  --num-iterations  8000 --output-file "$outfile"
-	$exe --quiet 1 --num-boids 100   --num-threads 4  --num-iterations  8000 --output-file "$outfile"
-	$exe --quiet 1 --num-boids 100   --num-threads 8  --num-iterations  8000 --output-file "$outfile"
-	$exe --quiet 1 --num-boids 100   --num-threads 16 --num-iterations  8000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 10    --num-threads 1  --num-iterations  1000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 10    --num-threads 2  --num-iterations  1000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 10    --num-threads 4  --num-iterations  1000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 10    --num-threads 8  --num-iterations  1000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 10    --num-threads 16 --num-iterations  1000 --output-file "$outfile"
 
-	$exe --quiet 1 --num-boids 1000  --num-threads 1  --num-iterations  8000 --output-file "$outfile"
-	$exe --quiet 1 --num-boids 1000  --num-threads 2  --num-iterations  8000 --output-file "$outfile"
-	$exe --quiet 1 --num-boids 1000  --num-threads 4  --num-iterations  8000 --output-file "$outfile"
-	$exe --quiet 1 --num-boids 1000  --num-threads 8  --num-iterations  8000 --output-file "$outfile"
-	$exe --quiet 1 --num-boids 1000  --num-threads 16 --num-iterations  8000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 100   --num-threads 1  --num-iterations  1000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 100   --num-threads 2  --num-iterations  1000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 100   --num-threads 4  --num-iterations  1000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 100   --num-threads 8  --num-iterations  1000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 100   --num-threads 16 --num-iterations  1000 --output-file "$outfile"
 
-	$exe --quiet 1 --num-boids 10000 --num-threads 1  --num-iterations  8000 --output-file "$outfile"
-	$exe --quiet 1 --num-boids 10000 --num-threads 2  --num-iterations  8000 --output-file "$outfile"
-	$exe --quiet 1 --num-boids 10000 --num-threads 4  --num-iterations  8000 --output-file "$outfile"
-	$exe --quiet 1 --num-boids 10000 --num-threads 8  --num-iterations  8000 --output-file "$outfile"
-	$exe --quiet 1 --num-boids 10000 --num-threads 16 --num-iterations  8000 --output-file "$outfile"
-}
-
-log_times() {
-    local line
-    while read -d l; do
-        printf "[%05d s]: %s" "$SECONDS" "$line";
-    done
+	$exe --quiet 1 --num-boids 1000  --num-threads 1  --num-iterations  1000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 1000  --num-threads 2  --num-iterations  1000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 1000  --num-threads 4  --num-iterations  1000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 1000  --num-threads 8  --num-iterations  1000 --output-file "$outfile"
+	$exe --quiet 1 --num-boids 1000  --num-threads 16 --num-iterations  1000 --output-file "$outfile"
 }
 
 set -x

@@ -2,7 +2,7 @@
 #include "config.h"
 
 void bind_config_vars(config* c) {
-	argparse_bind_int("--num-threads", &c->num_boids,
+	argparse_bind_int("--num-threads", &c->num_threads,
                       "number of openmp threads which will be used "
 					  "to run the simulation");
 	argparse_bind_int("--num-boids", &c->num_boids,
