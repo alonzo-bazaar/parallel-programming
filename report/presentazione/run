@@ -269,4 +269,4 @@
                ["--font-path" fonts-dir]))
 
 (ensure-assets)
-(map typst-compile ["presentazione-omp.typ"])
+(map typst-compile ["presentazione-omp.typ" "presentazione-ocl.typ"])
