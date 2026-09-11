@@ -1,0 +1,17 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{n}{\PYGZus{}\PYGZus{}kernel}\PYG{+w}{ }\PYG{k+kt}{void}\PYG{+w}{ }\PYG{n}{full\PYGZus{}hist}\PYG{p}{(}\PYG{k}{const}\PYG{+w}{ }\PYG{n}{\PYGZus{}\PYGZus{}global}\PYG{+w}{ }\PYG{n}{uchar}\PYG{o}{*}\PYG{+w}{ }\PYG{n}{input}\PYG{p}{,}
+\PYG{+w}{                        }\PYG{n}{\PYGZus{}\PYGZus{}global}\PYG{+w}{ }\PYG{n}{uint}\PYG{o}{*}\PYG{+w}{ }\PYG{n}{global\PYGZus{}hist}\PYG{p}{,}
+\PYG{+w}{                        }\PYG{n}{\PYGZus{}\PYGZus{}local}\PYG{+w}{ }\PYG{n}{uint}\PYG{o}{*}\PYG{+w}{ }\PYG{n}{local\PYGZus{}hist}\PYG{p}{,}
+\PYG{+w}{                        }\PYG{k}{const}\PYG{+w}{ }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{input\PYGZus{}size}\PYG{p}{,}
+\PYG{+w}{                        }\PYG{k}{const}\PYG{+w}{ }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{hist\PYGZus{}size}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{    }\PYG{k}{const}\PYG{+w}{ }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{gi}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{get\PYGZus{}global\PYGZus{}id}\PYG{p}{(}\PYG{l+m+mi}{0}\PYG{p}{);}
+\PYG{+w}{    }\PYG{k}{const}\PYG{+w}{ }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{li}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{get\PYGZus{}local\PYGZus{}id}\PYG{p}{(}\PYG{l+m+mi}{0}\PYG{p}{);}
+\PYG{+w}{    }\PYG{k}{if}\PYG{p}{(}\PYG{n}{li}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{hist\PYGZus{}size}\PYG{p}{)}\PYG{+w}{ }\PYG{n}{local\PYGZus{}hist}\PYG{p}{[}\PYG{n}{li}\PYG{p}{]}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}
+\PYG{+w}{    }\PYG{n}{barrier}\PYG{p}{(}\PYG{n}{CLK\PYGZus{}GLOBAL\PYGZus{}MEM\PYGZus{}FENCE}\PYG{+w}{ }\PYG{o}{|}\PYG{+w}{ }\PYG{n}{CLK\PYGZus{}LOCAL\PYGZus{}MEM\PYGZus{}FENCE}\PYG{p}{);}
+\PYG{+w}{    }\PYG{k}{if}\PYG{p}{(}\PYG{n}{gi}\PYG{o}{\PYGZlt{}}\PYG{n}{input\PYGZus{}size}\PYG{p}{)}
+\PYG{+w}{        }\PYG{n}{atomic\PYGZus{}add}\PYG{p}{(}\PYG{o}{\PYGZam{}}\PYG{n}{local\PYGZus{}hist}\PYG{p}{[}\PYG{n}{input}\PYG{p}{[}\PYG{n}{gi}\PYG{p}{]],}\PYG{+w}{ }\PYG{l+m+mi}{1}\PYG{p}{);}
+\PYG{+w}{    }\PYG{n}{barrier}\PYG{p}{(}\PYG{n}{CLK\PYGZus{}GLOBAL\PYGZus{}MEM\PYGZus{}FENCE}\PYG{+w}{ }\PYG{o}{|}\PYG{+w}{ }\PYG{n}{CLK\PYGZus{}LOCAL\PYGZus{}MEM\PYGZus{}FENCE}\PYG{p}{);}
+\PYG{+w}{    }\PYG{k}{if}\PYG{p}{(}\PYG{n}{li}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{hist\PYGZus{}size}\PYG{p}{)}
+\PYG{+w}{        }\PYG{n}{atomic\PYGZus{}add}\PYG{p}{(}\PYG{o}{\PYGZam{}}\PYG{n}{global\PYGZus{}hist}\PYG{p}{[}\PYG{n}{li}\PYG{p}{],}\PYG{+w}{ }\PYG{n}{local\PYGZus{}hist}\PYG{p}{[}\PYG{n}{li}\PYG{p}{]);}
+\PYG{p}{\PYGZcb{}}
+\end{MintedVerbatim}

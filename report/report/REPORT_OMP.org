@@ -1,3 +1,17 @@
+* Introduction
+* Boids
+** Problem Statement
+** General Procedure, and Parallel Patterns Tehrein
+* Implementation
+** Technologies Used
+*** C
+*** OpenMP
+** Version Implemented
+* Results and Benchmarks
+** Benchmarks Done
+** Benchmarks Results
+** Conclusions
+
 problem at hand
 - boids
 - problem description

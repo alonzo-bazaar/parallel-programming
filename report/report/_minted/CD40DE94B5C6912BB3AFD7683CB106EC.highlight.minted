@@ -1,0 +1,75 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{n}{\PYGZus{}\PYGZus{}kernel}\PYG{+w}{ }\PYG{k+kt}{void}\PYG{+w}{ }\PYG{n}{ks\PYGZus{}block\PYGZus{}scan}\PYG{p}{(}\PYG{n}{\PYGZus{}\PYGZus{}global}\PYG{+w}{ }\PYG{n}{uint}\PYG{o}{*}\PYG{+w}{ }\PYG{n}{global\PYGZus{}data}\PYG{p}{,}
+\PYG{+w}{                            }\PYG{k}{const}\PYG{+w}{ }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{global\PYGZus{}data\PYGZus{}size}\PYG{p}{,}
+\PYG{+w}{                            }\PYG{n}{\PYGZus{}\PYGZus{}local}\PYG{+w}{   }\PYG{n}{uint}\PYG{o}{*}\PYG{+w}{ }\PYG{n}{local\PYGZus{}data}\PYG{p}{,}
+\PYG{+w}{                            }\PYG{k}{const}\PYG{+w}{ }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{local\PYGZus{}data\PYGZus{}size}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{    }\PYG{k}{const}\PYG{+w}{ }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{global\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{get\PYGZus{}global\PYGZus{}id}\PYG{p}{(}\PYG{l+m+mi}{0}\PYG{p}{);}
+\PYG{+w}{    }\PYG{k}{const}\PYG{+w}{ }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{local\PYGZus{}idx}\PYG{+w}{  }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{get\PYGZus{}local\PYGZus{}id}\PYG{p}{(}\PYG{l+m+mi}{0}\PYG{p}{);}
+\PYG{+w}{    }\PYG{k}{const}\PYG{+w}{ }\PYG{k+kt}{bool}\PYG{+w}{ }\PYG{n}{is\PYGZus{}active}\PYG{+w}{  }\PYG{o}{=}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{global\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{global\PYGZus{}data\PYGZus{}size}\PYG{p}{);}
+
+\PYG{+w}{    }\PYG{n}{local\PYGZus{}data}\PYG{p}{[}\PYG{n}{local\PYGZus{}idx}\PYG{p}{]}\PYG{o}{=}\PYG{n}{is\PYGZus{}active}\PYG{o}{?}\PYG{n}{global\PYGZus{}data}\PYG{p}{[}\PYG{n}{global\PYGZus{}idx}\PYG{p}{]}\PYG{o}{:}\PYG{l+m+mi}{0}\PYG{p}{;}
+\PYG{+w}{    }\PYG{n}{barrier}\PYG{p}{(}\PYG{n}{CLK\PYGZus{}LOCAL\PYGZus{}MEM\PYGZus{}FENCE}\PYG{p}{);}
+
+\PYG{+w}{    }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{tmp}\PYG{p}{;}
+\PYG{+w}{    }\PYG{k}{for}\PYG{p}{(}\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{stride}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{1}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{stride}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{local\PYGZus{}data\PYGZus{}size}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{stride}\PYG{o}{*=}\PYG{l+m+mi}{2}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{        }\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{local\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{\PYGZgt{}=}\PYG{+w}{ }\PYG{n}{stride}\PYG{p}{)}
+\PYG{+w}{            }\PYG{n}{tmp}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{local\PYGZus{}data}\PYG{p}{[}\PYG{n}{local\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{\PYGZhy{}}\PYG{+w}{ }\PYG{n}{stride}\PYG{p}{];}
+\PYG{+w}{        }\PYG{n}{barrier}\PYG{p}{(}\PYG{n}{CLK\PYGZus{}LOCAL\PYGZus{}MEM\PYGZus{}FENCE}\PYG{p}{);}
+\PYG{+w}{        }\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{local\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{\PYGZgt{}=}\PYG{+w}{ }\PYG{n}{stride}\PYG{p}{)}
+\PYG{+w}{            }\PYG{n}{local\PYGZus{}data}\PYG{p}{[}\PYG{n}{local\PYGZus{}idx}\PYG{p}{]}\PYG{+w}{ }\PYG{o}{+=}\PYG{+w}{ }\PYG{n}{tmp}\PYG{p}{;}
+\PYG{+w}{        }\PYG{n}{barrier}\PYG{p}{(}\PYG{n}{CLK\PYGZus{}LOCAL\PYGZus{}MEM\PYGZus{}FENCE}\PYG{p}{);}
+\PYG{+w}{    }\PYG{p}{\PYGZcb{}}
+
+\PYG{+w}{    }\PYG{k}{if}\PYG{p}{(}\PYG{n}{is\PYGZus{}active}\PYG{p}{)}\PYG{+w}{ }\PYG{n}{global\PYGZus{}data}\PYG{p}{[}\PYG{n}{global\PYGZus{}idx}\PYG{p}{]}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{local\PYGZus{}data}\PYG{p}{[}\PYG{n}{local\PYGZus{}idx}\PYG{p}{];}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{c+c1}{// expected to be launched with only one work group}
+\PYG{c+c1}{// this kernel, together with the above and below kernels,}
+\PYG{c+c1}{// provides *one* level of heirarchical scan}
+\PYG{n}{\PYGZus{}\PYGZus{}kernel}\PYG{+w}{ }\PYG{k+kt}{void}\PYG{+w}{ }\PYG{n}{ks\PYGZus{}last\PYGZus{}elt\PYGZus{}scan}\PYG{p}{(}\PYG{n}{\PYGZus{}\PYGZus{}global}\PYG{+w}{ }\PYG{n}{uint}\PYG{o}{*}\PYG{+w}{ }\PYG{n}{global\PYGZus{}data}\PYG{p}{,}
+\PYG{+w}{                               }\PYG{k}{const}\PYG{+w}{ }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{global\PYGZus{}data\PYGZus{}size}\PYG{p}{,}
+
+\PYG{+w}{                               }\PYG{n}{\PYGZus{}\PYGZus{}local}\PYG{+w}{ }\PYG{n}{uint}\PYG{o}{*}\PYG{+w}{ }\PYG{n}{chunk\PYGZus{}sum\PYGZus{}scan}\PYG{p}{,}
+\PYG{+w}{                               }\PYG{k}{const}\PYG{+w}{ }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{number\PYGZus{}of\PYGZus{}chunks}\PYG{p}{,}
+\PYG{+w}{                               }\PYG{k}{const}\PYG{+w}{ }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{single\PYGZus{}chunk\PYGZus{}size}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{    }\PYG{k}{const}\PYG{+w}{ }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{local\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{get\PYGZus{}local\PYGZus{}id}\PYG{p}{(}\PYG{l+m+mi}{0}\PYG{p}{);}
+\PYG{+w}{    }\PYG{k}{const}\PYG{+w}{ }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{chunk\PYGZus{}sum\PYGZus{}global\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{=}
+\PYG{+w}{        }\PYG{p}{(}\PYG{n}{single\PYGZus{}chunk\PYGZus{}size}\PYG{+w}{ }\PYG{o}{*}\PYG{+w}{ }\PYG{n}{local\PYGZus{}idx}\PYG{p}{)}\PYG{+w}{ }\PYG{o}{+}
+\PYG{+w}{        }\PYG{p}{(}\PYG{n}{single\PYGZus{}chunk\PYGZus{}size}\PYG{+w}{ }\PYG{o}{\PYGZhy{}}\PYG{+w}{ }\PYG{l+m+mi}{1}\PYG{p}{);}
+\PYG{+w}{    }\PYG{k}{const}\PYG{+w}{ }\PYG{k+kt}{bool}\PYG{+w}{ }\PYG{n}{is\PYGZus{}active}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{chunk\PYGZus{}sum\PYGZus{}global\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{global\PYGZus{}data\PYGZus{}size}\PYG{p}{);}
+\PYG{+w}{    }\PYG{n}{chunk\PYGZus{}sum\PYGZus{}scan}\PYG{p}{[}\PYG{n}{local\PYGZus{}idx}\PYG{p}{]}\PYG{o}{=}\PYG{n}{is\PYGZus{}active}
+\PYG{+w}{        }\PYG{o}{?}\PYG{n}{global\PYGZus{}data}\PYG{p}{[}\PYG{n}{chunk\PYGZus{}sum\PYGZus{}global\PYGZus{}idx}\PYG{p}{]}
+\PYG{+w}{        }\PYG{o}{:}\PYG{l+m+mi}{0}\PYG{p}{;}
+\PYG{+w}{    }\PYG{n}{barrier}\PYG{p}{(}\PYG{n}{CLK\PYGZus{}LOCAL\PYGZus{}MEM\PYGZus{}FENCE}\PYG{p}{);}
+
+\PYG{+w}{    }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{tmp}\PYG{p}{;}
+\PYG{+w}{    }\PYG{k}{for}\PYG{p}{(}\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{stride}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{1}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{stride}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{number\PYGZus{}of\PYGZus{}chunks}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{stride}\PYG{o}{*=}\PYG{l+m+mi}{2}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{        }\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{local\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{\PYGZgt{}=}\PYG{+w}{ }\PYG{n}{stride}\PYG{p}{)}
+\PYG{+w}{            }\PYG{n}{tmp}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{chunk\PYGZus{}sum\PYGZus{}scan}\PYG{p}{[}\PYG{n}{local\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{\PYGZhy{}}\PYG{+w}{ }\PYG{n}{stride}\PYG{p}{];}
+\PYG{+w}{        }\PYG{n}{barrier}\PYG{p}{(}\PYG{n}{CLK\PYGZus{}LOCAL\PYGZus{}MEM\PYGZus{}FENCE}\PYG{p}{);}
+\PYG{+w}{        }\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{local\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{\PYGZgt{}=}\PYG{+w}{ }\PYG{n}{stride}\PYG{p}{)}
+\PYG{+w}{            }\PYG{n}{chunk\PYGZus{}sum\PYGZus{}scan}\PYG{p}{[}\PYG{n}{local\PYGZus{}idx}\PYG{p}{]}\PYG{+w}{ }\PYG{o}{+=}\PYG{+w}{ }\PYG{n}{tmp}\PYG{p}{;}
+\PYG{+w}{        }\PYG{n}{barrier}\PYG{p}{(}\PYG{n}{CLK\PYGZus{}LOCAL\PYGZus{}MEM\PYGZus{}FENCE}\PYG{p}{);}
+\PYG{+w}{    }\PYG{p}{\PYGZcb{}}
+
+\PYG{+w}{    }\PYG{k}{if}\PYG{p}{(}\PYG{n}{is\PYGZus{}active}\PYG{p}{)}
+\PYG{+w}{        }\PYG{n}{global\PYGZus{}data}\PYG{p}{[}\PYG{n}{chunk\PYGZus{}sum\PYGZus{}global\PYGZus{}idx}\PYG{p}{]}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{chunk\PYGZus{}sum\PYGZus{}scan}\PYG{p}{[}\PYG{n}{local\PYGZus{}idx}\PYG{p}{];}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{n}{\PYGZus{}\PYGZus{}kernel}\PYG{+w}{ }\PYG{k+kt}{void}\PYG{+w}{ }\PYG{n}{filling\PYGZus{}pass}\PYG{p}{(}\PYG{n}{\PYGZus{}\PYGZus{}global}\PYG{+w}{ }\PYG{n}{uint}\PYG{o}{*}\PYG{+w}{ }\PYG{n}{global\PYGZus{}data}\PYG{p}{,}
+\PYG{+w}{                           }\PYG{k}{const}\PYG{+w}{ }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{global\PYGZus{}data\PYGZus{}size}\PYG{p}{,}
+\PYG{+w}{                           }\PYG{k}{const}\PYG{+w}{ }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{single\PYGZus{}chunk\PYGZus{}size}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{    }\PYG{k}{const}\PYG{+w}{ }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{global\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{get\PYGZus{}global\PYGZus{}id}\PYG{p}{(}\PYG{l+m+mi}{0}\PYG{p}{);}
+\PYG{+w}{    }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{prev\PYGZus{}chunk\PYGZus{}end\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{global\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{\PYGZhy{}}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{global\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{\PYGZpc{}}\PYG{+w}{ }\PYG{n}{single\PYGZus{}chunk\PYGZus{}size}\PYG{p}{);}
+\PYG{+w}{    }\PYG{n}{prev\PYGZus{}chunk\PYGZus{}end\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{\PYGZhy{}=}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{prev\PYGZus{}chunk\PYGZus{}end\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{!=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{);}
+\PYG{+w}{    }\PYG{k}{const}\PYG{+w}{ }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{curr\PYGZus{}chunk\PYGZus{}end\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{prev\PYGZus{}chunk\PYGZus{}end\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{+}\PYG{+w}{ }\PYG{n}{single\PYGZus{}chunk\PYGZus{}size}\PYG{p}{;}
+\PYG{+w}{    }\PYG{k}{const}\PYG{+w}{ }\PYG{n}{uint}\PYG{+w}{ }\PYG{n}{prev\PYGZus{}chunk\PYGZus{}end}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{global\PYGZus{}data}\PYG{p}{[}\PYG{n}{prev\PYGZus{}chunk\PYGZus{}end\PYGZus{}idx}\PYG{p}{];}
+\PYG{+w}{    }\PYG{k}{const}\PYG{+w}{ }\PYG{k+kt}{bool}\PYG{+w}{ }\PYG{n}{is\PYGZus{}active}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{global\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{global\PYGZus{}data\PYGZus{}size}\PYG{p}{);}
+
+\PYG{+w}{    }\PYG{n}{barrier}\PYG{p}{(}\PYG{n}{CLK\PYGZus{}GLOBAL\PYGZus{}MEM\PYGZus{}FENCE}\PYG{p}{);}
+\PYG{+w}{    }\PYG{k}{if}\PYG{p}{(}\PYG{n}{is\PYGZus{}active}
+\PYG{+w}{       }\PYG{o}{\PYGZam{}\PYGZam{}}\PYG{+w}{ }\PYG{n}{prev\PYGZus{}chunk\PYGZus{}end\PYGZus{}idx}
+\PYG{+w}{       }\PYG{o}{\PYGZam{}\PYGZam{}}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{global\PYGZus{}idx}\PYG{+w}{ }\PYG{o}{!=}\PYG{+w}{ }\PYG{n}{curr\PYGZus{}chunk\PYGZus{}end\PYGZus{}idx}\PYG{p}{))}
+\PYG{+w}{        }\PYG{n}{global\PYGZus{}data}\PYG{p}{[}\PYG{n}{global\PYGZus{}idx}\PYG{p}{]}\PYG{+w}{ }\PYG{o}{+=}\PYG{+w}{ }\PYG{n}{prev\PYGZus{}chunk\PYGZus{}end}\PYG{p}{;}
+\PYG{p}{\PYGZcb{}}
+\end{MintedVerbatim}
